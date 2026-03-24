@@ -1,14 +1,11 @@
-export function generateVerificationCode(length: number = 6): string {
-  const digits = '0123456789'
-  let code = ''
-  for (let i = 0; i < length; i++) {
-    code += digits.charAt(Math.floor(Math.random() * digits.length))
-  }
-  return code
+const ALLOWED_DOMAIN = 'parra.catholic.edu.au'
+
+export function generateVerificationCode(length: number): string {
+  return Math.floor(
+    Math.pow(10, length - 1) + Math.random() * 9 * Math.pow(10, length - 1)
+  ).toString()
 }
 
-export const ALLOWED_DOMAIN = '@parra.catholic.edu.au'
-
 export function isAllowedEmail(email: string): boolean {
-  return email.toLowerCase().endsWith(ALLOWED_DOMAIN.toLowerCase())
+  return email.endsWith(`@${ALLOWED_DOMAIN}`)
 }

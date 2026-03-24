@@ -1,145 +1,57 @@
-import { MongoClient, Db } from 'mongodb'
+import { MongoClient } from 'mongodb'
+import crypto from 'crypto'
 
-let cachedClient: MongoClient | null = null
-let cachedDb: Db | null = null
+const client = new MongoClient(process.env.MONGODB_URI as string)
+const clientPromise = client.connect()
 
-async function connectToDatabase() {
-  if (cachedClient && cachedDb) {
-    return { client: cachedClient, db: cachedDb }
-  }
-
-  const uri = process.env.MONGODB_URI
-  if (!uri) {
-    throw new Error('MONGODB_URI environment variable is not defined')
-  }
-
-  const client = new MongoClient(uri)
-  await client.connect()
-  const db = client.db(process.env.MONGODB_DB || 'auth')
-
-  cachedClient = client
-  cachedDb = db
-
-  return { client, db }
-}
-
-export async function getDb() {
-  const { db } = await connectToDatabase()
-  return db
-}
-
-export interface VerificationCode {
-  email: string
-  code: string
-  expiresAt: Date
-  verified: boolean
-}
+// ── OTP codes ──────────────────────────────────────────────
 
 export async function saveVerificationCode(
   email: string,
   code: string,
-  expirationMinutes: number = 15
+  expiresInMinutes: number
 ) {
-  const db = await getDb()
-  const collection = db.collection<VerificationCode>('verification_codes')
-
-  const expiresAt = new Date(Date.now() + expirationMinutes * 60 * 1000)
-
-  await collection.updateOne(
+  const db = (await clientPromise).db('tinacms')
+  const expires = new Date(Date.now() + expiresInMinutes * 60 * 1000)
+  await db.collection('otp_codes').updateOne(
     { email },
-    {
-      $set: {
-        email,
-        code,
-        expiresAt,
-        verified: false,
-      },
-    },
+    { $set: { email, code, expires, used: false } },
     { upsert: true }
   )
-
-  return { email, code, expiresAt, verified: false }
 }
 
 export async function verifyCode(email: string, code: string) {
-  const db = await getDb()
-  const collection = db.collection<VerificationCode>('verification_codes')
+  const db = (await clientPromise).db('tinacms')
+  const record = await db.collection('otp_codes').findOne({ email })
 
-  const record = await collection.findOne({ email, code })
+  if (!record)                          return { success: false, error: 'No code found' }
+  if (record.used)                      return { success: false, error: 'Code already used' }
+  if (new Date() > new Date(record.expires)) return { success: false, error: 'Code expired' }
+  if (record.code !== code)             return { success: false, error: 'Invalid code' }
 
-  if (!record) {
-    return { success: false, error: 'Invalid code' }
-  }
-
-  if (record.expiresAt < new Date()) {
-    return { success: false, error: 'Code has expired' }
-  }
-
-  // Mark as verified
-  await collection.updateOne({ email, code }, { $set: { verified: true } })
-
-  return { success: true, email }
+  // Mark used
+  await db.collection('otp_codes').updateOne({ email }, { $set: { used: true } })
+  return { success: true }
 }
 
-export async function deleteVerificationCode(email: string) {
-  const db = await getDb()
-  const collection = db.collection<VerificationCode>('verification_codes')
-  await collection.deleteOne({ email })
+// ── Sessions ───────────────────────────────────────────────
+
+export async function createSession(email: string, expiresInDays: number) {
+  const db = (await clientPromise).db('tinacms')
+  const token = crypto.randomBytes(32).toString('hex')
+  const expires = new Date(Date.now() + expiresInDays * 24 * 60 * 60 * 1000)
+  await db.collection('sessions').insertOne({ email, token, expires })
+  return { token }
 }
 
-// Session management
-export interface UserSession {
-  email: string
-  createdAt: Date
-  expiresAt: Date
-  token: string
-}
-
-export async function createSession(
-  email: string,
-  expirationDays: number = 30
-): Promise<UserSession> {
-  const db = await getDb()
-  const collection = db.collection<UserSession>('sessions')
-
-  const now = new Date()
-  const expiresAt = new Date(now.getTime() + expirationDays * 24 * 60 * 60 * 1000)
-
-  // Generate a simple token (in production, use JWT)
-  const token = Buffer.from(`${email}:${Date.now()}`).toString('base64')
-
-  const session: UserSession = {
-    email,
-    createdAt: now,
-    expiresAt,
-    token,
-  }
-
-  await collection.insertOne(session)
-  return session
-}
-
-export async function getSession(token: string): Promise<UserSession | null> {
-  const db = await getDb()
-  const collection = db.collection<UserSession>('sessions')
-
-  const session = await collection.findOne({ token })
-
-  if (!session) {
-    return null
-  }
-
-  if (session.expiresAt < new Date()) {
-    // Session expired, delete it
-    await collection.deleteOne({ token })
-    return null
-  }
-
+export async function getSession(token: string) {
+  const db = (await clientPromise).db('tinacms')
+  const session = await db.collection('sessions').findOne({ token })
+  if (!session || new Date() > new Date(session.expires)) return null
   return session
 }
 
 export async function deleteSession(token: string) {
-  const db = await getDb()
-  const collection = db.collection<UserSession>('sessions')
-  await collection.deleteOne({ token })
+  const db = (await clientPromise).db('tinacms')
+  await db.collection('sessions').deleteOne({ token })
 }

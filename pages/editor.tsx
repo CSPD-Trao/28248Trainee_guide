@@ -11,34 +11,17 @@ export default function AdminWrapper() {
   const [codeInput, setCodeInput] = useState<string>('')
   const [error, setError] = useState<string>('')
   const [loading, setLoading] = useState(false)
-  const [isLocalhost, setIsLocalhost] = useState(false)
 
   useEffect(() => {
-    // Check if we're in local dev
-    const localhost = typeof window !== 'undefined' && 
-      (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1')
-    
-    setIsLocalhost(localhost)
-
-    if (localhost) {
-      setAuthStep('authorized')
-      setUserEmail('(Local Development)')
-      return
-    }
-
-    // Check if already has valid session via cookie
-    // (cookies are automatically sent with requests)
     checkSession()
   }, [])
 
   const checkSession = async () => {
     try {
-      // Try fetching a protected resource to verify session
       const response = await fetch('/api/auth/check', {
         method: 'GET',
         credentials: 'include',
       })
-
       if (response.ok) {
         const data = await response.json()
         setUserEmail(data.email)
@@ -83,7 +66,6 @@ export default function AdminWrapper() {
         return
       }
 
-      // Move to code verification step
       setUserEmail(normalizedEmail)
       setAuthStep('code')
       setEmailInput('')
@@ -111,10 +93,7 @@ export default function AdminWrapper() {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         credentials: 'include',
-        body: JSON.stringify({ 
-          email: userEmail, 
-          code: codeInput.trim() 
-        }),
+        body: JSON.stringify({ email: userEmail, code: codeInput.trim() }),
       })
 
       const data = await response.json()
@@ -125,7 +104,6 @@ export default function AdminWrapper() {
         return
       }
 
-      // Successfully verified
       setAuthStep('authorized')
       setCodeInput('')
     } catch (err) {
@@ -166,22 +144,19 @@ export default function AdminWrapper() {
         <p style={{ fontSize: '1.1rem', marginBottom: '2rem', color: '#666' }}>
           Enter your <strong>{ALLOWED_DOMAIN}</strong> email to get a verification code
         </p>
-        
+
         <form onSubmit={handleEmailSubmit} style={{
           backgroundColor: '#f9f9f9',
           padding: '2rem',
           borderRadius: '8px',
-          border: '1px solid #ddd'
+          border: '1px solid #ddd',
         }}>
           <div style={{ marginBottom: '1rem' }}>
             <input
               type="email"
               placeholder="your-email@parra.catholic.edu.au"
               value={emailInput}
-              onChange={(e) => {
-                setEmailInput(e.target.value)
-                setError('')
-              }}
+              onChange={(e) => { setEmailInput(e.target.value); setError('') }}
               disabled={loading}
               style={{
                 width: '100%',
@@ -196,12 +171,7 @@ export default function AdminWrapper() {
           </div>
 
           {error && (
-            <div style={{
-              color: '#ff4444',
-              marginBottom: '1rem',
-              fontSize: '0.95rem',
-              fontWeight: 'bold'
-            }}>
+            <div style={{ color: '#ff4444', marginBottom: '1rem', fontSize: '0.95rem', fontWeight: 'bold' }}>
               ❌ {error}
             </div>
           )}
@@ -219,18 +189,13 @@ export default function AdminWrapper() {
               fontWeight: 'bold',
               cursor: loading ? 'not-allowed' : 'pointer',
               width: '100%',
-              marginBottom: '1rem'
+              marginBottom: '1rem',
             }}
           >
             {loading ? 'Sending...' : 'Send Verification Code'}
           </button>
 
-          <a href="/" style={{
-            display: 'block',
-            color: '#0070f3',
-            textDecoration: 'none',
-            marginTop: '1rem'
-          }}>
+          <a href="/" style={{ display: 'block', color: '#0070f3', textDecoration: 'none', marginTop: '1rem' }}>
             ← Back to Home
           </a>
         </form>
@@ -253,22 +218,19 @@ export default function AdminWrapper() {
         <p style={{ fontSize: '0.95rem', marginBottom: '2rem', color: '#999' }}>
           Check your email and enter the code below
         </p>
-        
+
         <form onSubmit={handleCodeSubmit} style={{
           backgroundColor: '#f9f9f9',
           padding: '2rem',
           borderRadius: '8px',
-          border: '1px solid #ddd'
+          border: '1px solid #ddd',
         }}>
           <div style={{ marginBottom: '1rem' }}>
             <input
               type="text"
               placeholder="000000"
               value={codeInput}
-              onChange={(e) => {
-                setCodeInput(e.target.value.replace(/\D/g, ''))
-                setError('')
-              }}
+              onChange={(e) => { setCodeInput(e.target.value.replace(/\D/g, '')); setError('') }}
               maxLength={6}
               disabled={loading}
               style={{
@@ -287,12 +249,7 @@ export default function AdminWrapper() {
           </div>
 
           {error && (
-            <div style={{
-              color: '#ff4444',
-              marginBottom: '1rem',
-              fontSize: '0.95rem',
-              fontWeight: 'bold'
-            }}>
+            <div style={{ color: '#ff4444', marginBottom: '1rem', fontSize: '0.95rem', fontWeight: 'bold' }}>
               ❌ {error}
             </div>
           )}
@@ -310,7 +267,7 @@ export default function AdminWrapper() {
               fontWeight: 'bold',
               cursor: (loading || codeInput.length !== 6) ? 'not-allowed' : 'pointer',
               width: '100%',
-              marginBottom: '1rem'
+              marginBottom: '1rem',
             }}
           >
             {loading ? 'Verifying...' : 'Verify Code'}
@@ -318,12 +275,7 @@ export default function AdminWrapper() {
 
           <button
             type="button"
-            onClick={() => {
-              setAuthStep('email')
-              setUserEmail('')
-              setCodeInput('')
-              setError('')
-            }}
+            onClick={() => { setAuthStep('email'); setUserEmail(''); setCodeInput(''); setError('') }}
             disabled={loading}
             style={{
               backgroundColor: 'transparent',
@@ -343,7 +295,6 @@ export default function AdminWrapper() {
     )
   }
 
-  // Authorized - show editor
   return (
     <div style={{ display: 'flex', flexDirection: 'column', height: '100vh' }}>
       <div style={{
@@ -353,13 +304,11 @@ export default function AdminWrapper() {
         display: 'flex',
         justifyContent: 'space-between',
         alignItems: 'center',
-        zIndex: 1000
+        zIndex: 1000,
       }}>
         <div>
           <h2 style={{ margin: 0, display: 'inline' }}>TinaCMS Editor</h2>
-          <span style={{ marginLeft: '1rem', fontSize: '0.9rem', opacity: 0.9 }}>
-            {userEmail}
-          </span>
+          <span style={{ marginLeft: '1rem', fontSize: '0.9rem', opacity: 0.9 }}>{userEmail}</span>
         </div>
         <div style={{ display: 'flex', gap: '0.5rem' }}>
           <button
@@ -378,27 +327,24 @@ export default function AdminWrapper() {
           >
             Logout
           </button>
-          <a href="/" style={{
-            backgroundColor: '#ff4444',
-            color: 'white',
-            padding: '0.5rem 1rem',
-            borderRadius: '4px',
-            textDecoration: 'none',
-            fontWeight: 'bold',
-            cursor: 'pointer'
-          }}>
+          <a
+            href="/"
+            style={{
+              backgroundColor: '#ff4444',
+              color: 'white',
+              padding: '0.5rem 1rem',
+              borderRadius: '4px',
+              textDecoration: 'none',
+              fontWeight: 'bold',
+            }}
+          >
             Exit Editor
           </a>
         </div>
       </div>
       <iframe
         src="/admin/index.html"
-        style={{
-          flex: 1,
-          border: 'none',
-          width: '100%',
-          height: '100%'
-        }}
+        style={{ flex: 1, border: 'none', width: '100%', height: '100%' }}
         title="TinaCMS Admin"
       />
     </div>

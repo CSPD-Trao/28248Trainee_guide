@@ -2,23 +2,21 @@ import { Resend } from 'resend'
 
 const resend = new Resend(process.env.RESEND_API_KEY)
 
-export async function sendVerificationEmail(
-  email: string,
-  code: string,
-) {
+export async function sendVerificationEmail(email: string, code: string) {
   try {
-    const result = await resend.emails.send({
-      from: process.env.RESEND_FROM_EMAIL || 'onboarding@resend.dev',
-      to: email,
-      template: 'trainee-onboarding-welcome',
-      props: {
-        SSO_CODE: code,
-      },
+    await resend.emails.send({
+        from: 'onboarding@resend.dev',
+        to: email,
+        template: {
+            id: '5a9c683e-5fb3-47ee-92bd-6e98fe3aead5',
+            variables: {
+            SSO_CODE: code,
+            },
+        },
     })
-
-    return { success: true, result }
+    return { success: true }
   } catch (error) {
-    console.error('Failed to send verification email:', error)
-    return { success: false, error }
+    console.error('Resend error:', error)
+    return { success: false }
   }
 }

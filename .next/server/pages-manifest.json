@@ -2,6 +2,7 @@
   "/_app": "pages/_app.js",
   "/_error": "pages/_error.js",
   "/_document": "pages/_document.js",
-  "/editor": "pages/editor.js",
-  "/": "pages/index.js"
+  "/api/auth/request-code": "pages/api/auth/request-code.js",
+  "/": "pages/index.js",
+  "/api/auth/check": "pages/api/auth/check.js"
 }
