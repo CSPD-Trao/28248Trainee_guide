@@ -12,9 +12,9 @@ export default defineConfig({
 
   // Cloudinary handles all image uploads
   media: {
-    loadCustomStore: async () => {
-      const pack = await import('next-tinacms-cloudinary')
-      return pack.TinaCloudCloudinaryMediaStore
+    tina: {
+      mediaRoot: 'uploads',
+      publicFolder: 'public',
     },
   },
 

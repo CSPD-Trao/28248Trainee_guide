@@ -10,8 +10,26 @@ const Home: NextPage = () => {
         <link rel="icon" href="/favicon.ico" />
       </Head>
 
-      <main style={{ padding: '2rem', minHeight: '100vh' }}>
-        <h1>Welcome to My Guides</h1>
+      <header style={{ 
+        backgroundColor: '#0070f3', 
+        color: 'white', 
+        padding: '1rem 2rem',
+        display: 'flex',
+        justifyContent: 'space-between',
+        alignItems: 'center'
+      }}>
+        <h1 style={{ margin: 0 }}>My Guides</h1>
+        <nav style={{ display: 'flex', gap: '1rem' }}>
+          <a href="/" style={{ color: 'white', textDecoration: 'none', fontWeight: 'bold' }}>
+            Home
+          </a>
+          <a href="/editor" style={{ color: 'white', textDecoration: 'none', fontWeight: 'bold' }}>
+            Editor
+          </a>
+        </nav>
+      </header>
+
+      <main style={{ padding: '2rem', minHeight: 'calc(100vh - 80px)' }}>
         <p>Create and manage your guides using TinaCMS</p>
         
         <nav style={{ marginTop: '2rem' }}>
@@ -24,12 +42,6 @@ const Home: NextPage = () => {
             </li>
           </ul>
         </nav>
-        
-        <footer style={{ marginTop: '3rem', paddingTop: '1rem', borderTop: '1px solid #ccc' }}>
-          <a href="/admin/index.html" style={{ color: '#0070f3', textDecoration: 'underline' }}>
-            Edit or Add Guides
-          </a>
-        </footer>
       </main>
     </div>
   )

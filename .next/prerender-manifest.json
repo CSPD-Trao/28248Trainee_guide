@@ -1,1 +1,11 @@
-{"version":4,"routes":{"/guides/general_jobs":{}},"dynamicRoutes":{"/guides/[slug]":{"dataRoute":null,"dataRouteRegex":null,"fallback":false,"fallbackRevalidate":false,"fallbackSourceRoute":"/guides/[slug]","routeRegex":"^\\/guides\\/([^/]+?)(?:\\/)?$","allowHeader":[]}},"notFoundRoutes":[],"preview":{"previewModeId":"7bbe44f7a206461368790b9b3a82fe63","previewModeSigningKey":"d909469382073099b00f7ed716d9ca78e9774ee1cc878ecf2fa156c08b89472a","previewModeEncryptionKey":"8d45f2df1eb5b7d987ef4140497d197f2b25e7a8280b09cf9ebd7c4bf6aca8f6"}}
+{
+  "version": 4,
+  "routes": {},
+  "dynamicRoutes": {},
+  "notFoundRoutes": [],
+  "preview": {
+    "previewModeId": "81185157446ae47a536370ea8186d38d",
+    "previewModeSigningKey": "40f24a7dc1cff4d0a5ea57d98ff751044d867186e908d8b55d67ec4ddf94a08a",
+    "previewModeEncryptionKey": "5ff01227d149f1604318ba52bec1d99099273e40fc6041a5bc8b984ed6244d65"
+  }
+}

@@ -1,0 +1,5 @@
+fragment GuideParts on Guide {
+  __typename
+  title
+  body
+}

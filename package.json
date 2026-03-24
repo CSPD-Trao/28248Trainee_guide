@@ -9,21 +9,33 @@
     "lint": "next lint"
   },
   "dependencies": {
+    "@azure/msal-browser": "^5.6.1",
+    "@azure/msal-react": "^5.1.0",
+    "@tinacms/datalayer": "^2.0.12",
+    "cloudinary": "^2.9.0",
+    "jsonwebtoken": "^9.0.3",
+    "mongodb-level": "^0.0.4",
     "next": "^15.1.0",
+    "next-auth": "^4.24.13",
+    "next-tinacms-cloudinary": "^23.0.3",
     "react": "^19.0.0",
     "react-dom": "^19.0.0",
-    "@tinacms/datalayer": "^2.0.12",
-    "mongodb-level": "^0.0.4",
-    "next-tinacms-cloudinary": "^23.0.3",
+    "resend": "^6.9.4",
     "tinacms": "^3.6.3",
     "tinacms-gitprovider-github": "^4.0.13"
   },
   "devDependencies": {
-    "typescript": "^5.0.0",
     "@types/node": "^20.0.0",
     "@types/react": "^19.0.0",
     "@types/react-dom": "^19.0.0",
     "eslint": "^9.0.0",
-    "eslint-config-next": "^15.1.0"
+    "eslint-config-next": "^15.1.0",
+    "react-dnd": "^16.0.1",
+    "react-dnd-html5-backend": "^16.0.1",
+    "slate": "^0.124.0",
+    "slate-dom": "^0.124.0",
+    "slate-hyperscript": "^0.100.0",
+    "slate-react": "^0.124.0",
+    "typescript": "^5.0.0"
   }
 }

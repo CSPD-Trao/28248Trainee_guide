@@ -6,15 +6,34 @@ const readdir = fs.promises.readdir
 
 export default function GuidePage({ guide }: any) {
   return (
-    <div style={{ padding: '2rem', maxWidth: '800px', margin: '0 auto' }}>
-      <h1>{guide.title}</h1>
-      <div style={{ lineHeight: '1.8', whiteSpace: 'pre-wrap' }}>
-        {guide.body}
-      </div>
-      <div style={{ marginTop: '2rem', paddingTop: '1rem', borderTop: '1px solid #ccc' }}>
-        <a href="/" style={{ color: '#0070f3', textDecoration: 'underline' }}>
-          ← Back to Home
+    <div>
+      <header style={{ 
+        backgroundColor: '#0070f3', 
+        color: 'white', 
+        padding: '1rem 2rem',
+        display: 'flex',
+        justifyContent: 'space-between',
+        alignItems: 'center'
+      }}>
+        <h1 style={{ margin: 0 }}>My Guides</h1>
+        <nav style={{ display: 'flex', gap: '1rem' }}>
+          <a href="/" style={{ color: 'white', textDecoration: 'none', fontWeight: 'bold' }}>
+            Home
+          </a>
+          <a href="/editor" style={{ color: 'white', textDecoration: 'none', fontWeight: 'bold' }}>
+            Editor
+          </a>
+        </nav>
+      </header>
+
+      <div style={{ padding: '2rem', maxWidth: '800px', margin: '0 auto' }}>
+        <a href="/" style={{ color: '#0070f3', textDecoration: 'underline', marginBottom: '1rem', display: 'inline-block' }}>
+          ← Back to Guides
         </a>
+        <h1>{guide.title}</h1>
+        <div style={{ lineHeight: '1.8', whiteSpace: 'pre-wrap' }}>
+          {guide.body}
+        </div>
       </div>
     </div>
   )
