@@ -311,22 +311,6 @@ export default function AdminWrapper() {
           <span style={{ marginLeft: '1rem', fontSize: '0.9rem', opacity: 0.9 }}>{userEmail}</span>
         </div>
         <div style={{ display: 'flex', gap: '0.5rem' }}>
-          <button
-            onClick={handleLogout}
-            disabled={loading}
-            style={{
-              backgroundColor: '#ff9900',
-              color: 'white',
-              padding: '0.5rem 1rem',
-              border: 'none',
-              borderRadius: '4px',
-              fontWeight: 'bold',
-              cursor: loading ? 'not-allowed' : 'pointer',
-              opacity: loading ? 0.6 : 1,
-            }}
-          >
-            Logout
-          </button>
           <a
             href="/"
             style={{

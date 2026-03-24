@@ -46,7 +46,7 @@ export default async function handler(
 
     if (!emailResult.success) {
       return res.status(500).json({ 
-        error: 'Failed to send verification email' 
+        error: `Failed to send verification email: ${emailResult.error || 'Unknown error'}` 
       })
     }
 

@@ -1,350 +1,364 @@
-import { useEffect, useState } from 'react'
+import Link from 'next/link'
+import { useState, useEffect } from 'react'
 
-const ALLOWED_DOMAIN = '@parra.catholic.edu.au'
+const guideMetadata: Record<string, { title: string; description: string }> = {
+  'general_jobs': {
+    title: 'General Jobs',
+    description: 'Information about common roles and responsibilities',
+  },
+  'training_resources': {
+    title: 'Training Resources',
+    description: 'Comprehensive training materials and documentation',
+  },
+  'best_practices': {
+    title: 'Best Practices',
+    description: 'Guidelines and best practices for success',
+  },
+  'onboarding': {
+    title: 'Onboarding',
+    description: 'Get started with your new role',
+  },
+}
 
-type AuthStep = 'email' | 'code' | 'authorized'
-
-export default function AdminWrapper() {
-  const [authStep, setAuthStep] = useState<AuthStep>('email')
-  const [userEmail, setUserEmail] = useState<string>('')
-  const [emailInput, setEmailInput] = useState<string>('')
-  const [codeInput, setCodeInput] = useState<string>('')
-  const [error, setError] = useState<string>('')
-  const [loading, setLoading] = useState(false)
+export default function Home() {
+  const [articles, setArticles] = useState<Array<{ id: string; title: string; description: string; slug: string }>>([])
+  const [loading, setLoading] = useState(true)
 
   useEffect(() => {
-    checkSession()
+    const fetchGuides = async () => {
+      try {
+        const response = await fetch('/api/guides')
+        const data = await response.json()
+        
+        const loadedArticles = data.guides.map((slug: string) => ({
+          id: slug,
+          slug: slug,
+          title: guideMetadata[slug]?.title || slug.replace(/_/g, ' '),
+          description: guideMetadata[slug]?.description || 'Learn more about this topic',
+        }))
+        
+        setArticles(loadedArticles)
+      } catch (error) {
+        console.error('Failed to fetch guides:', error)
+      } finally {
+        setLoading(false)
+      }
+    }
+
+    fetchGuides()
   }, [])
 
-  const checkSession = async () => {
-    try {
-      const response = await fetch('/api/auth/check', {
-        method: 'GET',
-        credentials: 'include',
-      })
-
-      if (response.ok) {
-        const data = await response.json()
-        setUserEmail(data.email)
-        setAuthStep('authorized')
-      }
-    } catch {
-      setAuthStep('email')
-    }
-  }
-
-  const handleEmailSubmit = async (e: React.FormEvent) => {
-    e.preventDefault()
-    setError('')
-    setLoading(true)
-
-    if (!emailInput.trim()) {
-      setError('Please enter your email')
-      setLoading(false)
-      return
-    }
-
-    const normalizedEmail = emailInput.toLowerCase().trim()
-
-    if (!normalizedEmail.endsWith(ALLOWED_DOMAIN)) {
-      setError(`Only ${ALLOWED_DOMAIN} emails are allowed`)
-      setLoading(false)
-      return
-    }
-
-    try {
-      const response = await fetch('/api/auth/request-code', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email: normalizedEmail }),
-      })
-
-      const data = await response.json()
-
-      if (!response.ok) {
-        setError(data.error || 'Failed to send code')
-        setLoading(false)
-        return
-      }
-
-      setUserEmail(normalizedEmail)
-      setAuthStep('code')
-      setEmailInput('')
-    } catch (err) {
-      setError('Network error. Please try again.')
-      console.error(err)
-    } finally {
-      setLoading(false)
-    }
-  }
-
-  const handleCodeSubmit = async (e: React.FormEvent) => {
-    e.preventDefault()
-    setError('')
-    setLoading(true)
-
-    if (!codeInput.trim()) {
-      setError('Please enter the verification code')
-      setLoading(false)
-      return
-    }
-
-    try {
-      const response = await fetch('/api/auth/verify-code', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        credentials: 'include',
-        body: JSON.stringify({ email: userEmail, code: codeInput.trim() }),
-      })
-
-      const data = await response.json()
-
-      if (!response.ok) {
-        setError(data.error || 'Invalid code')
-        setLoading(false)
-        return
-      }
-
-      setAuthStep('authorized')
-      setCodeInput('')
-    } catch (err) {
-      setError('Network error. Please try again.')
-      console.error(err)
-    } finally {
-      setLoading(false)
-    }
-  }
-
-  const handleLogout = async () => {
-    setLoading(true)
-    try {
-      await fetch('/api/auth/logout', {
-        method: 'POST',
-        credentials: 'include',
-      })
-    } catch (err) {
-      console.error('Logout error:', err)
-    } finally {
-      setAuthStep('email')
-      setUserEmail('')
-      setCodeInput('')
-      setEmailInput('')
-      setLoading(false)
-    }
-  }
-
-  if (authStep === 'email') {
-    return (
-      <div style={{
-        padding: '2rem',
-        textAlign: 'center',
-        maxWidth: '500px',
-        margin: '4rem auto',
-      }}>
-        <h1>🔐 Editor Access</h1>
-        <p style={{ fontSize: '1.1rem', marginBottom: '2rem', color: '#666' }}>
-          Enter your <strong>{ALLOWED_DOMAIN}</strong> email to get a verification code
-        </p>
-
-        <form onSubmit={handleEmailSubmit} style={{
-          backgroundColor: '#f9f9f9',
-          padding: '2rem',
-          borderRadius: '8px',
-          border: '1px solid #ddd'
-        }}>
-          <div style={{ marginBottom: '1rem' }}>
-            <input
-              type="email"
-              placeholder="your-email@parra.catholic.edu.au"
-              value={emailInput}
-              onChange={(e) => { setEmailInput(e.target.value); setError('') }}
-              disabled={loading}
-              style={{
-                width: '100%',
-                padding: '0.75rem',
-                fontSize: '1rem',
-                border: '1px solid #ddd',
-                borderRadius: '4px',
-                boxSizing: 'border-box',
-                opacity: loading ? 0.6 : 1,
-              }}
-            />
-          </div>
-
-          {error && (
-            <div style={{ color: '#ff4444', marginBottom: '1rem', fontSize: '0.95rem', fontWeight: 'bold' }}>
-              ❌ {error}
-            </div>
-          )}
-
-          <button
-            type="submit"
-            disabled={loading}
-            style={{
-              backgroundColor: loading ? '#ccc' : '#0070f3',
-              color: 'white',
-              padding: '0.75rem 2rem',
-              border: 'none',
-              borderRadius: '4px',
-              fontSize: '1rem',
-              fontWeight: 'bold',
-              cursor: loading ? 'not-allowed' : 'pointer',
-              width: '100%',
-              marginBottom: '1rem',
-            }}
-          >
-            {loading ? 'Sending...' : 'Send Verification Code'}
-          </button>
-
-          <a href="/" style={{ display: 'block', color: '#0070f3', textDecoration: 'none', marginTop: '1rem' }}>
-            ← Back to Home
-          </a>
-        </form>
-      </div>
-    )
-  }
-
-  if (authStep === 'code') {
-    return (
-      <div style={{
-        padding: '2rem',
-        textAlign: 'center',
-        maxWidth: '500px',
-        margin: '4rem auto',
-      }}>
-        <h1>✉️ Verify Your Email</h1>
-        <p style={{ fontSize: '1.1rem', marginBottom: '1rem', color: '#666' }}>
-          We sent a code to <strong>{userEmail}</strong>
-        </p>
-        <p style={{ fontSize: '0.95rem', marginBottom: '2rem', color: '#999' }}>
-          Check your email and enter the code below
-        </p>
-
-        <form onSubmit={handleCodeSubmit} style={{
-          backgroundColor: '#f9f9f9',
-          padding: '2rem',
-          borderRadius: '8px',
-          border: '1px solid #ddd'
-        }}>
-          <div style={{ marginBottom: '1rem' }}>
-            <input
-              type="text"
-              placeholder="000000"
-              value={codeInput}
-              onChange={(e) => { setCodeInput(e.target.value.replace(/\D/g, '')); setError('') }}
-              maxLength={6}
-              disabled={loading}
-              style={{
-                width: '100%',
-                padding: '0.75rem',
-                fontSize: '2rem',
-                textAlign: 'center',
-                letterSpacing: '0.5rem',
-                border: '2px solid #ddd',
-                borderRadius: '4px',
-                boxSizing: 'border-box',
-                opacity: loading ? 0.6 : 1,
-                fontFamily: 'monospace',
-              }}
-            />
-          </div>
-
-          {error && (
-            <div style={{ color: '#ff4444', marginBottom: '1rem', fontSize: '0.95rem', fontWeight: 'bold' }}>
-              ❌ {error}
-            </div>
-          )}
-
-          <button
-            type="submit"
-            disabled={loading || codeInput.length !== 6}
-            style={{
-              backgroundColor: (loading || codeInput.length !== 6) ? '#ccc' : '#0070f3',
-              color: 'white',
-              padding: '0.75rem 2rem',
-              border: 'none',
-              borderRadius: '4px',
-              fontSize: '1rem',
-              fontWeight: 'bold',
-              cursor: (loading || codeInput.length !== 6) ? 'not-allowed' : 'pointer',
-              width: '100%',
-              marginBottom: '1rem',
-            }}
-          >
-            {loading ? 'Verifying...' : 'Verify Code'}
-          </button>
-
-          <button
-            type="button"
-            onClick={() => { setAuthStep('email'); setUserEmail(''); setCodeInput(''); setError('') }}
-            disabled={loading}
-            style={{
-              backgroundColor: 'transparent',
-              color: '#0070f3',
-              padding: '0.5rem 1rem',
-              border: '1px solid #0070f3',
-              borderRadius: '4px',
-              fontSize: '0.9rem',
-              cursor: loading ? 'not-allowed' : 'pointer',
-              opacity: loading ? 0.6 : 1,
-            }}
-          >
-            Use Different Email
-          </button>
-        </form>
-      </div>
-    )
-  }
-
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', height: '100vh' }}>
+    <div style={{ 
+      minHeight: '100vh', 
+      backgroundColor: '#0B0F13',
+      color: '#e2e8f0',
+      fontFamily: '"Segoe UI", system-ui, -apple-system, sans-serif',
+      padding: '2rem',
+    }}>
+      <style>{`
+        * {
+          margin: 0;
+          padding: 0;
+        }
+        
+        @keyframes scrollLeft {
+          0% {
+            transform: translateX(0);
+          }
+          100% {
+            transform: translateX(-100%);
+          }
+        }
+        
+        @keyframes scrollRight {
+          0% {
+            transform: translateX(0);
+          }
+          100% {
+            transform: translateX(100%);
+          }
+        }
+        
+        .marquee__content {
+          display: flex;
+          gap: 1rem;
+          list-style: none;
+          flex-shrink: 0;
+        }
+        
+        .marquee__content-left {
+          animation: scrollLeft 480s linear infinite;
+        }
+        
+        .marquee__content-right {
+          animation: scrollRight 240s linear infinite;
+        }
+        
+        .marquee {
+          display: flex;
+          overflow: hidden;
+          width: 100%;
+        }
+        
+        a {
+          text-decoration: none;
+          color: inherit;
+        }
+      `}</style>
+
+      {/* Header */}
       <div style={{
-        backgroundColor: '#0070f3',
-        color: 'white',
-        padding: '0.75rem 1.5rem',
+        textAlign: 'center',
+        minHeight: '80vh',
         display: 'flex',
-        justifyContent: 'space-between',
         alignItems: 'center',
-        zIndex: 1000,
+        justifyContent: 'center',
       }}>
-        <div>
-          <h2 style={{ margin: 0, display: 'inline' }}>TinaCMS Editor</h2>
-          <span style={{ marginLeft: '1rem', fontSize: '0.9rem', opacity: 0.9 }}>{userEmail}</span>
-        </div>
-        <div style={{ display: 'flex', gap: '0.5rem' }}>
-          <button
-            onClick={handleLogout}
-            disabled={loading}
-            style={{
-              backgroundColor: '#ff9900',
-              color: 'white',
-              padding: '0.5rem 1rem',
-              border: 'none',
-              borderRadius: '4px',
-              fontWeight: 'bold',
-              cursor: loading ? 'not-allowed' : 'pointer',
-              opacity: loading ? 0.6 : 1,
-            }}
-          >
-            Logout
-          </button>
-          <a href="/" style={{
-            backgroundColor: '#ff4444',
-            color: 'white',
-            padding: '0.5rem 1rem',
-            borderRadius: '4px',
-            textDecoration: 'none',
-            fontWeight: 'bold',
-          }}>
-            Exit Editor
-          </a>
-        </div>
+        <h1 style={{
+          fontSize: '2.5rem',
+          fontWeight: '600',
+          color: '#f1f5f9',
+        }}>
+          Trainee Guide
+        </h1>
       </div>
-      <iframe
-        src="/admin/index.html"
-        style={{ flex: 1, border: 'none', width: '100%', height: '100%' }}
-        title="TinaCMS Admin"
-      />
+
+      {/* Three Marquee Lines */}
+      {!loading && articles.length > 0 && (
+        <div style={{
+          position: 'fixed',
+          bottom: 0,
+          left: 0,
+          right: 0,
+          backgroundColor: '#0B0F13',
+          borderTop: '1px solid #2d3748',
+          padding: '1rem 0',
+          display: 'flex',
+          flexDirection: 'column',
+          gap: '0.75rem',
+        }}>
+          {/* Top line - scrolling right (faster) */}
+          <div className="marquee">
+            <ul className="marquee__content marquee__content-right">
+              {[...Array(Math.ceil(12 / articles.length))].flatMap(() => 
+                articles.map((article) => (
+                  <li key={`top-${article.id}`} style={{ margin: '0.5rem' }}>
+                    <div
+                      style={{
+                        background: '#1a1f2e',
+                        border: '1px solid #2d3748',
+                        borderRadius: '6px',
+                        padding: '1rem',
+                        cursor: 'pointer',
+                        transition: 'border-color 0.2s ease',
+                        display: 'flex',
+                        flexDirection: 'column',
+                        minWidth: '160px',
+                        minHeight: '70px',
+                      }}
+                      onMouseEnter={(e) => {
+                        e.currentTarget.style.borderColor = '#7C3AED'
+                      }}
+                      onMouseLeave={(e) => {
+                        e.currentTarget.style.borderColor = '#2d3748'
+                      }}
+                    />
+                  </li>
+                ))
+              )}
+            </ul>
+            <ul className="marquee__content marquee__content-right" aria-hidden="true">
+              {[...Array(Math.ceil(12 / articles.length))].flatMap(() => 
+                articles.map((article) => (
+                  <li key={`top-dup-${article.id}`} style={{ margin: '0.5rem' }}>
+                    <div
+                      style={{
+                        background: '#1a1f2e',
+                        border: '1px solid #2d3748',
+                        borderRadius: '6px',
+                        padding: '1rem',
+                        cursor: 'pointer',
+                        transition: 'border-color 0.2s ease',
+                        display: 'flex',
+                        flexDirection: 'column',
+                        minWidth: '160px',
+                        minHeight: '70px',
+                      }}
+                      onMouseEnter={(e) => {
+                        e.currentTarget.style.borderColor = '#7C3AED'
+                      }}
+                      onMouseLeave={(e) => {
+                        e.currentTarget.style.borderColor = '#2d3748'
+                      }}
+                    />
+                  </li>
+                ))
+              )}
+            </ul>
+          </div>
+
+          {/* Middle line - scrolling left (slower) */}
+          <div className="marquee">
+            <ul className="marquee__content marquee__content-left">
+              {[...Array(Math.ceil(12 / articles.length))].flatMap(() => 
+                articles.map((article) => (
+                  <li key={`mid-${article.id}`} style={{ margin: '0.5rem' }}>
+                    <Link href={`/guides/${article.slug}`}>
+                      <div
+                        style={{
+                          background: '#1a1f2e',
+                          border: '1px solid #2d3748',
+                          borderRadius: '6px',
+                          padding: '1rem',
+                          cursor: 'pointer',
+                          transition: 'border-color 0.2s ease',
+                          display: 'flex',
+                          flexDirection: 'column',
+                          minWidth: '160px',
+                          minHeight: '70px',
+                        }}
+                        onMouseEnter={(e) => {
+                          e.currentTarget.style.borderColor = '#7C3AED'
+                        }}
+                        onMouseLeave={(e) => {
+                          e.currentTarget.style.borderColor = '#2d3748'
+                        }}
+                      >
+                        <h3 style={{
+                          fontSize: '0.85rem',
+                          fontWeight: '600',
+                          marginBottom: '0.3rem',
+                          color: '#e2e8f0',
+                          lineHeight: '1.2',
+                        }}>
+                          {article.title}
+                        </h3>
+                        <p style={{
+                          fontSize: '0.7rem',
+                          color: '#a0aec0',
+                          lineHeight: '1.2',
+                          margin: 0,
+                        }}>
+                          {article.description}
+                        </p>
+                      </div>
+                    </Link>
+                  </li>
+                ))
+              )}
+            </ul>
+            <ul className="marquee__content marquee__content-left" aria-hidden="true">
+              {[...Array(Math.ceil(12 / articles.length))].flatMap(() => 
+                articles.map((article) => (
+                  <li key={`mid-dup-${article.id}`} style={{ margin: '0.5rem' }}>
+                    <Link href={`/guides/${article.slug}`}>
+                      <div
+                        style={{
+                          background: '#1a1f2e',
+                          border: '1px solid #2d3748',
+                          borderRadius: '6px',
+                          padding: '1rem',
+                          cursor: 'pointer',
+                          transition: 'border-color 0.2s ease',
+                          display: 'flex',
+                          flexDirection: 'column',
+                          minWidth: '160px',
+                          minHeight: '70px',
+                        }}
+                        onMouseEnter={(e) => {
+                          e.currentTarget.style.borderColor = '#7C3AED'
+                        }}
+                        onMouseLeave={(e) => {
+                          e.currentTarget.style.borderColor = '#2d3748'
+                        }}
+                      >
+                        <h3 style={{
+                          fontSize: '0.85rem',
+                          fontWeight: '600',
+                          marginBottom: '0.3rem',
+                          color: '#e2e8f0',
+                          lineHeight: '1.2',
+                        }}>
+                          {article.title}
+                        </h3>
+                        <p style={{
+                          fontSize: '0.7rem',
+                          color: '#a0aec0',
+                          lineHeight: '1.2',
+                          margin: 0,
+                        }}>
+                          {article.description}
+                        </p>
+                      </div>
+                    </Link>
+                  </li>
+                ))
+              )}
+            </ul>
+          </div>
+
+          {/* Bottom line - scrolling right (faster) */}
+          <div className="marquee">
+            <ul className="marquee__content marquee__content-right">
+              {[...Array(Math.ceil(12 / articles.length))].flatMap(() => 
+                articles.map((article) => (
+                  <li key={`bot-${article.id}`} style={{ margin: '0.5rem' }}>
+                    <div
+                      style={{
+                        background: '#1a1f2e',
+                        border: '1px solid #2d3748',
+                        borderRadius: '6px',
+                        padding: '1rem',
+                        cursor: 'pointer',
+                        transition: 'border-color 0.2s ease',
+                        display: 'flex',
+                        flexDirection: 'column',
+                        minWidth: '160px',
+                        minHeight: '70px',
+                      }}
+                      onMouseEnter={(e) => {
+                        e.currentTarget.style.borderColor = '#7C3AED'
+                      }}
+                      onMouseLeave={(e) => {
+                        e.currentTarget.style.borderColor = '#2d3748'
+                      }}
+                    />
+                  </li>
+                ))
+              )}
+            </ul>
+            <ul className="marquee__content marquee__content-right" aria-hidden="true">
+              {[...Array(Math.ceil(12 / articles.length))].flatMap(() => 
+                articles.map((article) => (
+                  <li key={`bot-dup-${article.id}`} style={{ margin: '0.5rem' }}>
+                    <div
+                      style={{
+                        background: '#1a1f2e',
+                        border: '1px solid #2d3748',
+                        borderRadius: '6px',
+                        padding: '1rem',
+                        cursor: 'pointer',
+                        transition: 'border-color 0.2s ease',
+                        display: 'flex',
+                        flexDirection: 'column',
+                        minWidth: '160px',
+                        minHeight: '70px',
+                      }}
+                      onMouseEnter={(e) => {
+                        e.currentTarget.style.borderColor = '#7C3AED'
+                      }}
+                      onMouseLeave={(e) => {
+                        e.currentTarget.style.borderColor = '#2d3748'
+                      }}
+                    />
+                  </li>
+                ))
+              )}
+            </ul>
+          </div>
+        </div>
+      )}
     </div>
   )
 }
