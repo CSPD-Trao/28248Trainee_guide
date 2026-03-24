@@ -1,12 +1,16 @@
-// tina/config.ts
 import { defineConfig } from 'tinacms'
 
 export default defineConfig({
   branch: 'main',
-  clientId: null,       // not needed for self-hosted
-  token: null,          // not needed for self-hosted
+  clientId: null,
+  token: null,
 
-  // ✅ ADD THIS BLOCK (Step 2 - Cloudinary)
+  build: {
+    outputFolder: 'admin',
+    publicFolder: 'public',
+  },
+
+  // Cloudinary handles all image uploads
   media: {
     loadCustomStore: async () => {
       const pack = await import('next-tinacms-cloudinary')
@@ -14,10 +18,26 @@ export default defineConfig({
     },
   },
 
-  // your existing schema/collections stay here unchanged
   schema: {
     collections: [
-      // ... your existing guide collections
+      {
+        name: 'guide',
+        label: 'Guides',
+        path: 'content/guides',
+        fields: [
+          {
+            type: 'string',
+            name: 'title',
+            label: 'Title',
+          },
+          {
+            type: 'rich-text',
+            name: 'body',
+            label: 'Body',
+            isBody: true,
+          },
+        ],
+      },
     ],
   },
 })

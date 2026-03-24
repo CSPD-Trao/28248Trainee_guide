@@ -1,0 +1,29 @@
+{
+  "name": "my-guides-site",
+  "version": "1.0.0",
+  "private": true,
+  "scripts": {
+    "dev": "tinacms dev -c \"next dev\"",
+    "build": "tinacms build && next build",
+    "start": "next start",
+    "lint": "next lint"
+  },
+  "dependencies": {
+    "next": "^15.1.0",
+    "react": "^19.0.0",
+    "react-dom": "^19.0.0",
+    "@tinacms/datalayer": "^2.0.12",
+    "mongodb-level": "^0.0.4",
+    "next-tinacms-cloudinary": "^23.0.3",
+    "tinacms": "^3.6.3",
+    "tinacms-gitprovider-github": "^4.0.13"
+  },
+  "devDependencies": {
+    "typescript": "^5.0.0",
+    "@types/node": "^20.0.0",
+    "@types/react": "^19.0.0",
+    "@types/react-dom": "^19.0.0",
+    "eslint": "^9.0.0",
+    "eslint-config-next": "^15.1.0"
+  }
+}
