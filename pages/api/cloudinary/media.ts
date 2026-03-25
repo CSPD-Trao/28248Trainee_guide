@@ -1,7 +1,8 @@
-import { createMediaHandler, mediaHandlerConfig } from 'next-tinacms-cloudinary/dist/handlers'
+import { createMediaHandler } from 'next-tinacms-cloudinary/dist/handlers'
 import type { NextApiRequest, NextApiResponse } from 'next'
 
-export const config = mediaHandlerConfig
+// bodyParser must be disabled so multer can handle multipart/form-data uploads
+export const config = { api: { bodyParser: false } }
 
 export default createMediaHandler(
   {
