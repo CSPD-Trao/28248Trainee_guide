@@ -11,7 +11,12 @@ async function getBackend(): Promise<NextApiHandler | null> {
   if (!process.env.MONGODB_URI) return null
 
   if (!tinaBackend) {
-    const { TinaNodeBackend, LocalBackendAuthProvider, createDatabase } = await import('@tinacms/datalayer')
+    const {
+      TinaNodeBackend,
+      LocalBackendAuthProvider,
+      createDatabase,
+      resolve,
+    } = await import('@tinacms/datalayer')
     const { MongodbLevel } = await import('mongodb-level')
     const { GitHubProvider } = await import('tinacms-gitprovider-github')
 
@@ -22,7 +27,11 @@ async function getBackend(): Promise<NextApiHandler | null> {
       token: process.env.GITHUB_TOKEN as string,
     })
 
-    const databaseClient = createDatabase({
+    // createDatabase() returns a Database instance. TinaNodeBackend expects
+    // databaseClient.request() which doesn't exist on Database. We build the
+    // wrapper manually using `resolve`, which is what the generated
+    // tina/__generated__/databaseClient.ts would do.
+    const database = createDatabase({
       gitProvider,
       databaseAdapter: new MongodbLevel({
         collectionName: 'tinacms',
@@ -30,6 +39,18 @@ async function getBackend(): Promise<NextApiHandler | null> {
         mongoUri: process.env.MONGODB_URI,
       }),
     })
+
+    const databaseClient = {
+      request: (params: { query: string; variables: Record<string, unknown>; user?: any }) =>
+        resolve({
+          config: { useRelativeMedia: true },
+          database,
+          query: params.query,
+          variables: params.variables ?? {},
+          verbose: true,
+          ctxUser: params.user,
+        }),
+    }
 
     tinaBackend = TinaNodeBackend({
       authProvider: LocalBackendAuthProvider(),
