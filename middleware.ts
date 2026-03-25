@@ -1,12 +1,16 @@
 import { NextResponse } from 'next/server'
 import type { NextRequest } from 'next/server'
+import { getToken } from 'next-auth/jwt'
 
 export async function middleware(request: NextRequest) {
   const pathname = request.nextUrl.pathname
 
   // Protect TinaCMS API routes
   if (pathname.startsWith('/api/tina')) {
-    const token = request.cookies.get('auth_token')?.value
+    const token = await getToken({
+      req: request,
+      secret: process.env.NEXTAUTH_SECRET,
+    })
 
     if (!token) {
       return NextResponse.json(
@@ -15,7 +19,6 @@ export async function middleware(request: NextRequest) {
       )
     }
 
-    // Token exists, continue to validate in the API route
     return NextResponse.next()
   }
 

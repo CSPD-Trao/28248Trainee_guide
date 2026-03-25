@@ -1,0 +1,409 @@
+/* LiquidZulu Global Styles */
+
+/* Font Imports */
+@import url('https://fonts.googleapis.com/css2?family=Oswald&family=Phudu&family=Bebas+Neue&display=swap');
+
+/* Root Variables */
+:root {
+  --bg-primary: #0f172a;
+  --bg-alternate: #0B0F13;
+  --bg-card: #1a202c;
+  --text-primary: #f1f5f9;
+  --text-secondary: #cbd5e1;
+  --accent-primary: #f97316;
+  --accent-amber: #f59e0b;
+  --accent-lime: #84cc16;
+  --accent-emerald: #10b981;
+  --border-color: #3f3f46;
+}
+
+/* Base Styles */
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+html, body {
+  background-color: var(--bg-primary);
+  color: var(--text-primary);
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen',
+    'Ubuntu', 'Cantarell', 'Fira Sans', 'Droid Sans', 'Helvetica Neue',
+    sans-serif;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  scrollbar-color: white;
+  color-scheme: light;
+}
+
+/* Custom Font Classes */
+.cubano {
+  font-family: 'Cubano', system-ui, sans-serif;
+}
+
+.bebas {
+  font-family: 'Bebas Neue', system-ui, sans-serif;
+}
+
+.oswald {
+  font-family: 'Oswald', system-ui, sans-serif;
+}
+
+.phudu {
+  font-family: 'Phudu', system-ui, sans-serif;
+}
+
+/* Gradient Text Effect */
+.gradient-text {
+  color: rgba(0, 0, 0, 0);
+  background-clip: text;
+  -webkit-background-clip: text;
+}
+
+/* Emphasis Classes */
+.emphasis {
+  background: linear-gradient(to top, var(--accent-primary), var(--accent-amber));
+  background-clip: text;
+  -webkit-background-clip: text;
+  color: transparent;
+  text-transform: uppercase;
+  font-weight: 900;
+  font-family: 'Cubano', system-ui, sans-serif;
+}
+
+.mcas-emphasis {
+  background: linear-gradient(to top, var(--accent-lime), var(--accent-emerald));
+  background-clip: text;
+  -webkit-background-clip: text;
+  color: transparent;
+  text-transform: uppercase;
+  font-weight: 900;
+}
+
+/* Grid Lines Background Pattern */
+.gridlines {
+  --size: 32px;
+  --bg-size: var(--size) var(--size), var(--size) var(--size);
+  --grid-color: rgba(255, 255, 255, 0.015);
+  
+  background-image: 
+    linear-gradient(var(--grid-color) 1px, transparent 1px),
+    linear-gradient(90deg, var(--grid-color) 1px, transparent 1px);
+  background-size: var(--bg-size);
+}
+
+/* Noise Texture Overlay */
+.noise-panel {
+  position: relative;
+}
+
+.noise-panel::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-image: url('/noise.webp');
+  opacity: 0.6;
+  mix-blend-mode: overlay;
+  pointer-events: none;
+  border-radius: inherit;
+}
+
+/* Drop Shadow Effects */
+.drop-shadow-glow {
+  filter: drop-shadow(0 0px 65px rgba(255, 255, 255, 0.2));
+}
+
+.footer-shadow {
+  box-shadow: 0 0 10vh 10vh black;
+}
+
+/* Bounce Animations */
+@keyframes bounce-left {
+  0%, 100% {
+    transform: translateX(-25%);
+    animation-timing-function: cubic-bezier(0.8, 0, 1, 1);
+  }
+  50% {
+    transform: translateX(0);
+    animation-timing-function: cubic-bezier(0, 0, 0.2, 1);
+  }
+}
+
+@keyframes bounce-right {
+  0%, 100% {
+    transform: translateX(25%);
+    animation-timing-function: cubic-bezier(0.8, 0, 1, 1);
+  }
+  50% {
+    transform: translateX(0);
+    animation-timing-function: cubic-bezier(0, 0, 0.2, 1);
+  }
+}
+
+/* Blob Rotation Animation */
+@keyframes blob-rotate {
+  from {
+    rotate: 0deg;
+  }
+  50% {
+    scale: 1 1.3;
+  }
+  to {
+    rotate: 360deg;
+  }
+}
+
+/* Custom Animation Classes */
+@media (prefers-reduced-motion: no-preference) {
+  .animation-bounce-left {
+    animation: bounce-left 1s infinite;
+  }
+
+  .animation-bounce-right {
+    animation: bounce-right 1s infinite;
+  }
+
+  .animation-blob-rotate {
+    animation: blob-rotate 20s infinite;
+  }
+}
+
+/* Scroll Show Animation */
+.scroll-show-hidden {
+  opacity: 0;
+  transform: translateY(50%);
+  filter: blur(2px);
+  transition: all 0.8s ease-in-out;
+}
+
+.scroll-show-show {
+  opacity: 1;
+  filter: blur(0);
+  transform: translateY(0);
+}
+
+/* Marquee Animation */
+@keyframes scroll-left {
+  0% {
+    transform: translateX(0);
+  }
+  100% {
+    transform: translateX(-100%);
+  }
+}
+
+@keyframes scroll-right {
+  0% {
+    transform: translateX(0);
+  }
+  100% {
+    transform: translateX(100%);
+  }
+}
+
+.marquee {
+  display: flex;
+  overflow: hidden;
+  gap: 0;
+}
+
+.marquee__content {
+  display: flex;
+  gap: 1rem;
+  list-style: none;
+  flex-shrink: 0;
+}
+
+.marquee__content-left {
+  animation: scroll-left 480s linear infinite;
+}
+
+.marquee__content-right {
+  animation: scroll-right 240s linear infinite;
+}
+
+/* Card Styles */
+.card-base {
+  border-radius: 0.5rem;
+  box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1);
+  border: 1px solid var(--border-color);
+}
+
+.card-hover {
+  transition: all 0.3s ease-in-out;
+}
+
+.card-hover:hover {
+  border-color: var(--accent-primary);
+  transform: scale(1.05);
+  box-shadow: 0 25px 50px -12px rgba(249, 115, 22, 0.3);
+}
+
+/* Button Styles */
+.btn-primary {
+  background: linear-gradient(to right, var(--accent-primary), var(--accent-amber));
+  color: white;
+  border: none;
+  padding: 0.75rem 1.5rem;
+  border-radius: 0.5rem;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all 0.3s ease-in-out;
+  font-family: 'Cubano', system-ui, sans-serif;
+}
+
+.btn-primary:hover {
+  transform: scale(1.05);
+  box-shadow: 0 20px 25px -5px rgba(249, 115, 22, 0.3);
+}
+
+.btn-primary:focus {
+  outline: 2px solid var(--accent-primary);
+  outline-offset: 2px;
+}
+
+/* Inset Shadow */
+.inset-shadow {
+  box-shadow: inset 0 0 1rem -0.1rem rgba(0, 0, 0, 1);
+}
+
+/* Skip to Content Link */
+.skip-to-content {
+  position: absolute;
+  top: -9999px;
+  left: -9999px;
+  background: var(--accent-primary);
+  color: white;
+  padding: 8px 16px;
+  text-decoration: none;
+  z-index: 100;
+  border-radius: 0.5rem;
+}
+
+.skip-to-content:focus {
+  top: 10px;
+  left: 10px;
+  transition: all 0.3s ease-in-out;
+}
+
+/* Responsive Utilities */
+@media (max-width: 768px) {
+  .hidden-mobile {
+    display: none;
+  }
+}
+
+@media (min-width: 768px) {
+  .hidden-desktop {
+    display: none;
+  }
+}
+
+/* Container */
+.container-fluid {
+  width: 100%;
+  padding: 0 2rem;
+  margin: 0 auto;
+}
+
+@media (max-width: 768px) {
+  .container-fluid {
+    padding: 0 1rem;
+  }
+}
+
+/* Link Styles */
+a {
+  color: var(--accent-primary);
+  text-decoration: none;
+  transition: color 0.3s ease-in-out;
+}
+
+a:hover {
+  color: var(--accent-amber);
+}
+
+a:focus {
+  outline: 2px solid var(--accent-primary);
+  outline-offset: 2px;
+}
+
+/* Code Styles */
+code {
+  background-color: rgba(0, 0, 0, 0.3);
+  padding: 0.2em 0.4em;
+  border-radius: 3px;
+  font-family: 'Courier New', monospace;
+  font-size: 0.9em;
+}
+
+pre {
+  background-color: rgba(0, 0, 0, 0.5);
+  padding: 1rem;
+  border-radius: 0.5rem;
+  overflow-x: auto;
+  margin: 1rem 0;
+}
+
+pre code {
+  background: none;
+  padding: 0;
+}
+
+/* Image Optimization */
+img {
+  max-width: 100%;
+  height: auto;
+  display: block;
+}
+
+/* Heading Styles */
+h1, h2, h3, h4, h5, h6 {
+  font-weight: 900;
+  line-height: 1.2;
+  margin-bottom: 1rem;
+}
+
+h1 {
+  font-size: 2.25rem;
+  font-family: 'Bebas Neue', system-ui, sans-serif;
+}
+
+h2 {
+  font-size: 1.875rem;
+  font-family: 'Bebas Neue', system-ui, sans-serif;
+}
+
+h3 {
+  font-size: 1.5rem;
+  font-family: 'Oswald', system-ui, sans-serif;
+}
+
+/* Paragraph Styles */
+p {
+  line-height: 1.6;
+  margin-bottom: 1rem;
+  color: var(--text-secondary);
+}
+
+/* List Styles */
+ul, ol {
+  margin-left: 1.5rem;
+  margin-bottom: 1rem;
+}
+
+li {
+  margin-bottom: 0.5rem;
+}
+
+/* Accessibility */
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}

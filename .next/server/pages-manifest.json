@@ -1,8 +1,9 @@
 {
   "/_app": "pages/_app.js",
-  "/_error": "pages/_error.js",
   "/_document": "pages/_document.js",
-  "/guides/[slug]": "pages/guides/[slug].js",
+  "/_error": "pages/_error.js",
+  "/editor": "pages/editor.js",
+  "/api/auth/[...nextauth]": "pages/api/auth/[...nextauth].js",
   "/": "pages/index.js",
   "/api/guides": "pages/api/guides.js"
 }

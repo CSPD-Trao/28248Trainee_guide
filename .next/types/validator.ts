@@ -41,6 +41,15 @@ type ApiRouteConfig = {
 
 
 
+// Validate ../../pages/_app.tsx
+{
+  type __IsExpected<Specific extends PagesPageConfig> = Specific
+  const handler = {} as typeof import("../../pages/_app.js")
+  type __Check = __IsExpected<typeof handler>
+  // @ts-ignore
+  type __Unused = __Check
+}
+
 // Validate ../../pages/_document.tsx
 {
   type __IsExpected<Specific extends PagesPageConfig> = Specific
@@ -77,37 +86,10 @@ type ApiRouteConfig = {
   type __Unused = __Check
 }
 
-// Validate ../../pages/api/auth/check.ts
+// Validate ../../pages/api/auth/[...nextauth].ts
 {
   type __IsExpected<Specific extends ApiRouteConfig> = Specific
-  const handler = {} as typeof import("../../pages/api/auth/check.js")
-  type __Check = __IsExpected<typeof handler>
-  // @ts-ignore
-  type __Unused = __Check
-}
-
-// Validate ../../pages/api/auth/logout.ts
-{
-  type __IsExpected<Specific extends ApiRouteConfig> = Specific
-  const handler = {} as typeof import("../../pages/api/auth/logout.js")
-  type __Check = __IsExpected<typeof handler>
-  // @ts-ignore
-  type __Unused = __Check
-}
-
-// Validate ../../pages/api/auth/request-code.ts
-{
-  type __IsExpected<Specific extends ApiRouteConfig> = Specific
-  const handler = {} as typeof import("../../pages/api/auth/request-code.js")
-  type __Check = __IsExpected<typeof handler>
-  // @ts-ignore
-  type __Unused = __Check
-}
-
-// Validate ../../pages/api/auth/verify-code.ts
-{
-  type __IsExpected<Specific extends ApiRouteConfig> = Specific
-  const handler = {} as typeof import("../../pages/api/auth/verify-code.js")
+  const handler = {} as typeof import("../../pages/api/auth/[...nextauth].js")
   type __Check = __IsExpected<typeof handler>
   // @ts-ignore
   type __Unused = __Check

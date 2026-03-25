@@ -1,336 +1,226 @@
-import { useEffect, useState } from 'react'
+import { useSession, signIn, signOut } from 'next-auth/react'
+import { useRouter } from 'next/router'
+import Link from 'next/link'
+import Header from '@/components/Header'
 
 const ALLOWED_DOMAIN = '@parra.catholic.edu.au'
 
-type AuthStep = 'email' | 'code' | 'authorized'
+export default function EditorPage() {
+  const { data: session, status } = useSession()
+  const router = useRouter()
+  const error = router.query.error as string | undefined
 
-export default function AdminWrapper() {
-  const [authStep, setAuthStep] = useState<AuthStep>('email')
-  const [userEmail, setUserEmail] = useState<string>('')
-  const [emailInput, setEmailInput] = useState<string>('')
-  const [codeInput, setCodeInput] = useState<string>('')
-  const [error, setError] = useState<string>('')
-  const [loading, setLoading] = useState(false)
-
-  useEffect(() => {
-    checkSession()
-  }, [])
-
-  const checkSession = async () => {
-    try {
-      const response = await fetch('/api/auth/check', {
-        method: 'GET',
-        credentials: 'include',
-      })
-      if (response.ok) {
-        const data = await response.json()
-        setUserEmail(data.email)
-        setAuthStep('authorized')
-      }
-    } catch {
-      setAuthStep('email')
-    }
-  }
-
-  const handleEmailSubmit = async (e: React.FormEvent) => {
-    e.preventDefault()
-    setError('')
-    setLoading(true)
-
-    if (!emailInput.trim()) {
-      setError('Please enter your email')
-      setLoading(false)
-      return
-    }
-
-    const normalizedEmail = emailInput.toLowerCase().trim()
-
-    if (!normalizedEmail.endsWith(ALLOWED_DOMAIN)) {
-      setError(`Only ${ALLOWED_DOMAIN} emails are allowed`)
-      setLoading(false)
-      return
-    }
-
-    try {
-      const response = await fetch('/api/auth/request-code', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email: normalizedEmail }),
-      })
-
-      const data = await response.json()
-
-      if (!response.ok) {
-        setError(data.error || 'Failed to send code')
-        setLoading(false)
-        return
-      }
-
-      setUserEmail(normalizedEmail)
-      setAuthStep('code')
-      setEmailInput('')
-    } catch (err) {
-      setError('Network error. Please try again.')
-      console.error(err)
-    } finally {
-      setLoading(false)
-    }
-  }
-
-  const handleCodeSubmit = async (e: React.FormEvent) => {
-    e.preventDefault()
-    setError('')
-    setLoading(true)
-
-    if (!codeInput.trim()) {
-      setError('Please enter the verification code')
-      setLoading(false)
-      return
-    }
-
-    try {
-      const response = await fetch('/api/auth/verify-code', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        credentials: 'include',
-        body: JSON.stringify({ email: userEmail, code: codeInput.trim() }),
-      })
-
-      const data = await response.json()
-
-      if (!response.ok) {
-        setError(data.error || 'Invalid code')
-        setLoading(false)
-        return
-      }
-
-      setAuthStep('authorized')
-      setCodeInput('')
-    } catch (err) {
-      setError('Network error. Please try again.')
-      console.error(err)
-    } finally {
-      setLoading(false)
-    }
-  }
-
-  const handleLogout = async () => {
-    setLoading(true)
-    try {
-      await fetch('/api/auth/logout', {
-        method: 'POST',
-        credentials: 'include',
-      })
-    } catch (err) {
-      console.error('Logout error:', err)
-    } finally {
-      setAuthStep('email')
-      setUserEmail('')
-      setCodeInput('')
-      setEmailInput('')
-      setLoading(false)
-    }
-  }
-
-  if (authStep === 'email') {
+  if (status === 'loading') {
     return (
-      <div style={{
-        padding: '2rem',
-        textAlign: 'center',
-        maxWidth: '500px',
-        margin: '4rem auto',
-      }}>
-        <h1>🔐 Editor Access</h1>
-        <p style={{ fontSize: '1.1rem', marginBottom: '2rem', color: '#666' }}>
-          Enter your <strong>{ALLOWED_DOMAIN}</strong> email to get a verification code
-        </p>
-
-        <form onSubmit={handleEmailSubmit} style={{
-          backgroundColor: '#f9f9f9',
-          padding: '2rem',
-          borderRadius: '8px',
-          border: '1px solid #ddd',
+      <>
+        <Header />
+        <div style={{
+          minHeight: '100vh',
+          backgroundColor: '#0B0F13',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
         }}>
-          <div style={{ marginBottom: '1rem' }}>
-            <input
-              type="email"
-              placeholder="your-email@parra.catholic.edu.au"
-              value={emailInput}
-              onChange={(e) => { setEmailInput(e.target.value); setError('') }}
-              disabled={loading}
-              style={{
-                width: '100%',
-                padding: '0.75rem',
-                fontSize: '1rem',
-                border: '1px solid #ddd',
-                borderRadius: '4px',
-                boxSizing: 'border-box',
-                opacity: loading ? 0.6 : 1,
-              }}
-            />
-          </div>
-
-          {error && (
-            <div style={{ color: '#ff4444', marginBottom: '1rem', fontSize: '0.95rem', fontWeight: 'bold' }}>
-              ❌ {error}
-            </div>
-          )}
-
-          <button
-            type="submit"
-            disabled={loading}
-            style={{
-              backgroundColor: loading ? '#ccc' : '#0070f3',
-              color: 'white',
-              padding: '0.75rem 2rem',
-              border: 'none',
-              borderRadius: '4px',
-              fontSize: '1rem',
-              fontWeight: 'bold',
-              cursor: loading ? 'not-allowed' : 'pointer',
-              width: '100%',
-              marginBottom: '1rem',
-            }}
-          >
-            {loading ? 'Sending...' : 'Send Verification Code'}
-          </button>
-
-          <a href="/" style={{ display: 'block', color: '#0070f3', textDecoration: 'none', marginTop: '1rem' }}>
-            ← Back to Home
-          </a>
-        </form>
-      </div>
+          <p style={{ color: '#9ca3af', fontFamily: 'system-ui' }}>Loading...</p>
+        </div>
+      </>
     )
   }
 
-  if (authStep === 'code') {
+  if (!session) {
     return (
-      <div style={{
-        padding: '2rem',
-        textAlign: 'center',
-        maxWidth: '500px',
-        margin: '4rem auto',
-      }}>
-        <h1>✉️ Verify Your Email</h1>
-        <p style={{ fontSize: '1.1rem', marginBottom: '1rem', color: '#666' }}>
-          We sent a code to <strong>{userEmail}</strong>
-        </p>
-        <p style={{ fontSize: '0.95rem', marginBottom: '2rem', color: '#999' }}>
-          Check your email and enter the code below
-        </p>
-
-        <form onSubmit={handleCodeSubmit} style={{
-          backgroundColor: '#f9f9f9',
+      <>
+        <Header />
+        <div style={{
+          minHeight: '100vh',
+          backgroundColor: '#0B0F13',
+          display: 'flex',
+          flexDirection: 'column',
+          alignItems: 'center',
+          justifyContent: 'center',
           padding: '2rem',
-          borderRadius: '8px',
-          border: '1px solid #ddd',
+          paddingTop: '120px',
         }}>
-          <div style={{ marginBottom: '1rem' }}>
-            <input
-              type="text"
-              placeholder="000000"
-              value={codeInput}
-              onChange={(e) => { setCodeInput(e.target.value.replace(/\D/g, '')); setError('') }}
-              maxLength={6}
-              disabled={loading}
-              style={{
-                width: '100%',
-                padding: '0.75rem',
-                fontSize: '2rem',
-                textAlign: 'center',
-                letterSpacing: '0.5rem',
-                border: '2px solid #ddd',
-                borderRadius: '4px',
-                boxSizing: 'border-box',
-                opacity: loading ? 0.6 : 1,
-                fontFamily: 'monospace',
-              }}
-            />
-          </div>
+          <style>{`
+            .auth-form-container {
+              background: linear-gradient(135deg, rgba(26, 32, 44, 0.8) 0%, rgba(15, 23, 42, 0.9) 100%);
+              border: 1px solid #3f3f46;
+              border-radius: 0.5rem;
+              padding: 2.5rem;
+              box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.3);
+              max-width: 480px;
+              width: 100%;
+            }
+            .google-btn {
+              width: 100%;
+              padding: 0.875rem 1.5rem;
+              border: none;
+              border-radius: 0.5rem;
+              font-size: 1rem;
+              font-weight: 700;
+              cursor: pointer;
+              transition: all 0.3s ease;
+              font-family: 'Bebas Neue', system-ui, sans-serif;
+              letter-spacing: 0.05em;
+              background: linear-gradient(to right, #f97316, #f59e0b);
+              color: #0B0F13;
+              display: flex;
+              align-items: center;
+              justify-content: center;
+              gap: 0.75rem;
+            }
+            .google-btn:hover {
+              transform: translateY(-2px);
+              box-shadow: 0 10px 20px rgba(249, 115, 22, 0.3);
+            }
+          `}</style>
 
-          {error && (
-            <div style={{ color: '#ff4444', marginBottom: '1rem', fontSize: '0.95rem', fontWeight: 'bold' }}>
-              ❌ {error}
-            </div>
-          )}
-
-          <button
-            type="submit"
-            disabled={loading || codeInput.length !== 6}
-            style={{
-              backgroundColor: (loading || codeInput.length !== 6) ? '#ccc' : '#0070f3',
-              color: 'white',
-              padding: '0.75rem 2rem',
-              border: 'none',
-              borderRadius: '4px',
+          <div className="auth-form-container">
+            <h1 style={{
+              fontSize: '2rem',
+              fontWeight: 900,
+              color: '#f1f5f9',
+              fontFamily: "'Bebas Neue', system-ui, sans-serif",
+              letterSpacing: '0.05em',
+              textAlign: 'center',
+              marginBottom: '0.5rem',
+            }}>
+              🔐 EDITOR ACCESS
+            </h1>
+            <p style={{
               fontSize: '1rem',
-              fontWeight: 'bold',
-              cursor: (loading || codeInput.length !== 6) ? 'not-allowed' : 'pointer',
-              width: '100%',
-              marginBottom: '1rem',
-            }}
-          >
-            {loading ? 'Verifying...' : 'Verify Code'}
-          </button>
+              marginBottom: '2rem',
+              color: '#cbd5e1',
+              textAlign: 'center',
+              lineHeight: '1.6',
+            }}>
+              Sign in with your{' '}
+              <span style={{ color: '#f97316', fontWeight: 600 }}>{ALLOWED_DOMAIN}</span>{' '}
+              Google account to continue
+            </p>
 
-          <button
-            type="button"
-            onClick={() => { setAuthStep('email'); setUserEmail(''); setCodeInput(''); setError('') }}
-            disabled={loading}
-            style={{
-              backgroundColor: 'transparent',
-              color: '#0070f3',
-              padding: '0.5rem 1rem',
-              border: '1px solid #0070f3',
-              borderRadius: '4px',
-              fontSize: '0.9rem',
-              cursor: loading ? 'not-allowed' : 'pointer',
-              opacity: loading ? 0.6 : 1,
+            {error === 'AccessDenied' && (
+              <div style={{
+                color: '#ef4444',
+                marginBottom: '1.5rem',
+                fontSize: '0.9rem',
+                fontWeight: 600,
+                backgroundColor: 'rgba(239, 68, 68, 0.1)',
+                border: '1px solid rgba(239, 68, 68, 0.3)',
+                padding: '0.75rem',
+                borderRadius: '0.5rem',
+                textAlign: 'center',
+              }}>
+                ⚠️ Only {ALLOWED_DOMAIN} accounts are permitted
+              </div>
+            )}
+
+            <button
+              className="google-btn"
+              onClick={() => signIn('google', { callbackUrl: '/editor' })}
+            >
+              <svg width="20" height="20" viewBox="0 0 48 48" fill="none">
+                <path d="M43.611 20.083H42V20H24v8h11.303c-1.649 4.657-6.08 8-11.303 8-6.627 0-12-5.373-12-12s5.373-12 12-12c3.059 0 5.842 1.154 7.961 3.039l5.657-5.657C34.046 6.053 29.268 4 24 4 12.955 4 4 12.955 4 24s8.955 20 20 20 20-8.955 20-20c0-1.341-.138-2.65-.389-3.917z" fill="#FFC107"/>
+                <path d="M6.306 14.691l6.571 4.819C14.655 15.108 18.961 12 24 12c3.059 0 5.842 1.154 7.961 3.039l5.657-5.657C34.046 6.053 29.268 4 24 4 16.318 4 9.656 8.337 6.306 14.691z" fill="#FF3D00"/>
+                <path d="M24 44c5.166 0 9.86-1.977 13.409-5.192l-6.19-5.238C29.211 35.091 26.715 36 24 36c-5.202 0-9.619-3.317-11.283-7.946l-6.522 5.025C9.505 39.556 16.227 44 24 44z" fill="#4CAF50"/>
+                <path d="M43.611 20.083H42V20H24v8h11.303a12.04 12.04 0 01-4.087 5.571l6.19 5.238C36.971 39.205 44 34 44 24c0-1.341-.138-2.65-.389-3.917z" fill="#1976D2"/>
+              </svg>
+              SIGN IN WITH GOOGLE
+            </button>
+
+            <Link href="/" style={{
+              display: 'block',
+              textAlign: 'center',
+              color: '#f97316',
+              textDecoration: 'none',
+              marginTop: '1.5rem',
+              fontSize: '0.95rem',
+              fontWeight: 600,
+              transition: 'color 0.3s ease',
             }}
-          >
-            Use Different Email
-          </button>
-        </form>
-      </div>
+            onMouseEnter={(e) => (e.currentTarget.style.color = '#f59e0b')}
+            onMouseLeave={(e) => (e.currentTarget.style.color = '#f97316')}
+            >
+              ← Back to Home
+            </Link>
+          </div>
+        </div>
+      </>
     )
   }
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', height: '100vh' }}>
-      <div style={{
-        backgroundColor: '#0070f3',
-        color: 'white',
-        padding: '0.75rem 1.5rem',
-        display: 'flex',
-        justifyContent: 'space-between',
-        alignItems: 'center',
-        zIndex: 1000,
-      }}>
-        <div>
-          <h2 style={{ margin: 0, display: 'inline' }}>TinaCMS Editor</h2>
-          <span style={{ marginLeft: '1rem', fontSize: '0.9rem', opacity: 0.9 }}>{userEmail}</span>
-        </div>
-        <div style={{ display: 'flex', gap: '0.5rem' }}>
-          <a
-            href="/"
-            style={{
-              backgroundColor: '#ff4444',
-              color: 'white',
-              padding: '0.5rem 1rem',
-              borderRadius: '4px',
+    <>
+      <Header />
+      <div style={{ display: 'flex', flexDirection: 'column', height: '100vh', backgroundColor: '#0B0F13' }}>
+        <div style={{
+          background: 'linear-gradient(to right, #f97316, #f59e0b)',
+          color: '#0B0F13',
+          padding: '1rem 1.5rem',
+          display: 'flex',
+          justifyContent: 'space-between',
+          alignItems: 'center',
+          zIndex: 1000,
+          boxShadow: '0 4px 6px rgba(0, 0, 0, 0.3)',
+        }}>
+          <div>
+            <h2 style={{
+              margin: 0,
+              display: 'inline',
+              fontFamily: "'Bebas Neue', system-ui, sans-serif",
+              fontSize: '1.5rem',
+              fontWeight: 900,
+              letterSpacing: '0.05em',
+            }}>
+              TINACMS EDITOR
+            </h2>
+            <span style={{ marginLeft: '1.5rem', fontSize: '0.95rem', opacity: 0.8, fontWeight: 600 }}>
+              {session.user?.email}
+            </span>
+          </div>
+          <div style={{ display: 'flex', gap: '0.75rem', alignItems: 'center' }}>
+            <Link href="/" style={{
+              backgroundColor: 'rgba(0, 0, 0, 0.2)',
+              color: '#0B0F13',
+              padding: '0.6rem 1.2rem',
+              borderRadius: '0.5rem',
               textDecoration: 'none',
-              fontWeight: 'bold',
+              fontWeight: 700,
+              fontSize: '0.9rem',
+              border: '1px solid rgba(0, 0, 0, 0.3)',
+              transition: 'all 0.3s ease',
             }}
-          >
-            Exit Editor
-          </a>
+            onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = 'rgba(0,0,0,0.4)')}
+            onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = 'rgba(0,0,0,0.2)')}
+            >
+              ← EXIT EDITOR
+            </Link>
+            <button
+              onClick={() => signOut({ callbackUrl: '/editor' })}
+              style={{
+                backgroundColor: 'rgba(0, 0, 0, 0.2)',
+                color: '#0B0F13',
+                border: '1px solid rgba(0, 0, 0, 0.3)',
+                padding: '0.6rem 1.2rem',
+                borderRadius: '0.5rem',
+                fontWeight: 700,
+                fontSize: '0.9rem',
+                cursor: 'pointer',
+                transition: 'all 0.3s ease',
+              }}
+              onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = 'rgba(0,0,0,0.4)')}
+              onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = 'rgba(0,0,0,0.2)')}
+            >
+              LOGOUT
+            </button>
+          </div>
         </div>
+        <iframe
+          src="/admin/index.html"
+          style={{ flex: 1, border: 'none', width: '100%', height: '100%' }}
+          title="TinaCMS Admin"
+        />
       </div>
-      <iframe
-        src="/admin/index.html"
-        style={{ flex: 1, border: 'none', width: '100%', height: '100%' }}
-        title="TinaCMS Admin"
-      />
-    </div>
+    </>
   )
 }
