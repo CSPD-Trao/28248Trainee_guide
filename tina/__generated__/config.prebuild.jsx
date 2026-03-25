@@ -1,9 +1,10 @@
 // tina/config.ts
-import { defineConfig } from "tinacms";
+import { defineConfig, LocalAuthProvider } from "tinacms";
 var config_default = defineConfig({
   branch: process.env.GITHUB_BRANCH || "main",
   clientId: null,
   token: null,
+  authProvider: new LocalAuthProvider(),
   contentApiUrlOverride: "/api/tina/gql",
   build: {
     outputFolder: "admin",
