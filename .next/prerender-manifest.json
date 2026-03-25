@@ -1,0 +1,41 @@
+{
+  "version": 4,
+  "routes": {
+    "/guides/general_jobs": {
+      "initialRevalidateSeconds": 3600,
+      "initialExpireSeconds": 31536000,
+      "srcRoute": "/guides/[slug]",
+      "dataRoute": "/_next/data/5bsYE6eskSZLUg5FXwH6e/guides/general_jobs.json",
+      "allowHeader": [
+        "host",
+        "x-matched-path",
+        "x-prerender-revalidate",
+        "x-prerender-revalidate-if-generated",
+        "x-next-revalidated-tags",
+        "x-next-revalidate-tag-token"
+      ]
+    }
+  },
+  "dynamicRoutes": {
+    "/guides/[slug]": {
+      "routeRegex": "^/guides/([^/]+?)(?:/)?$",
+      "dataRoute": "/_next/data/5bsYE6eskSZLUg5FXwH6e/guides/[slug].json",
+      "fallback": false,
+      "dataRouteRegex": "^/_next/data/5bsYE6eskSZLUg5FXwH6e/guides/([^/]+?)\\.json$",
+      "allowHeader": [
+        "host",
+        "x-matched-path",
+        "x-prerender-revalidate",
+        "x-prerender-revalidate-if-generated",
+        "x-next-revalidated-tags",
+        "x-next-revalidate-tag-token"
+      ]
+    }
+  },
+  "notFoundRoutes": [],
+  "preview": {
+    "previewModeId": "d28de80d5c49c966c54f77fad2bb1113",
+    "previewModeSigningKey": "8cbb039f778b7cd3f860b88d0e8c6a14e3c0ee530af6a6cf54cbefed96b65b9e",
+    "previewModeEncryptionKey": "f5f10b29db65bb34af496c21aa4277477a7abc57440139ea7ec8bf6f440f47ba"
+  }
+}

@@ -1,0 +1,14 @@
+{
+  "/_app": "pages/_app.js",
+  "/_document": "pages/_document.js",
+  "/api/cloudinary": "pages/api/cloudinary.js",
+  "/api/cloudinary/media": "pages/api/cloudinary/media.js",
+  "/api/tina/[...routes]": "pages/api/tina/[...routes].js",
+  "/editor": "pages/editor.html",
+  "/_error": "pages/_error.js",
+  "/api/guides": "pages/api/guides.js",
+  "/": "pages/index.html",
+  "/api/auth/[...nextauth]": "pages/api/auth/[...nextauth].js",
+  "/guides/[slug]": "pages/guides/[slug].js",
+  "/404": "pages/404.html"
+}
