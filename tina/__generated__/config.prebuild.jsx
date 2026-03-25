@@ -10,11 +10,11 @@ var config_default = defineConfig({
     outputFolder: "admin",
     publicFolder: "public"
   },
-  // Cloudinary handles all image uploads
+  // Use Cloudinary for media storage via next-tinacms-cloudinary
   media: {
-    tina: {
-      mediaRoot: "uploads",
-      publicFolder: "public"
+    loadCustomStore: async () => {
+      const { CloudinaryMediaStore } = await import("next-tinacms-cloudinary");
+      return CloudinaryMediaStore;
     }
   },
   schema: {
