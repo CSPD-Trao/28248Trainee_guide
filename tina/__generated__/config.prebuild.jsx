@@ -30,6 +30,22 @@ var config_default = defineConfig({
             label: "Title"
           },
           {
+            type: "string",
+            name: "description",
+            label: "Description"
+          },
+          {
+            type: "boolean",
+            name: "sensitive",
+            label: "Sensitive (requires login to view)"
+          },
+          {
+            type: "string",
+            name: "schools",
+            label: "Applicable Schools (AgeIDs \u2014 leave empty = all schools)",
+            list: true
+          },
+          {
             type: "rich-text",
             name: "body",
             label: "Body",

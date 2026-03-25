@@ -1,5 +1,8 @@
 fragment GuideParts on Guide {
   __typename
   title
+  description
+  sensitive
+  schools
   body
 }

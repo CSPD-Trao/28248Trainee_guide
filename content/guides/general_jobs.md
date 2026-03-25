@@ -1,5 +1,12 @@
 
-![](https://res.cloudinary.com/dgrperna7/image/upload/v1774312070/samples/chair.png)
+---
+title: "General Jobs"
+description: "Information about common roles and responsibilities"
+sensitive: false
+schools: []
+---
+
+![]( https://res.cloudinary.com/dgrperna7/image/upload/v1774312070/samples/chair.png)
 
 # General Jobs
 

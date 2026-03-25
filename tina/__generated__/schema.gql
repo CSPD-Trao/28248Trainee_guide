@@ -89,6 +89,9 @@ union DocumentNode = Guide | Folder
 
 type Guide implements Node & Document {
   title: String
+  description: String
+  sensitive: Boolean
+  schools: [String]
   body: JSON
   id: ID!
   _sys: SystemInfo!
@@ -102,6 +105,11 @@ input StringFilter {
   in: [String]
 }
 
+input BooleanFilter {
+  eq: Boolean
+  exists: Boolean
+}
+
 input RichTextFilter {
   startsWith: String
   eq: String
@@ -110,6 +118,9 @@ input RichTextFilter {
 
 input GuideFilter {
   title: StringFilter
+  description: StringFilter
+  sensitive: BooleanFilter
+  schools: StringFilter
   body: RichTextFilter
 }
 
@@ -145,6 +156,9 @@ input DocumentMutation {
 
 input GuideMutation {
   title: String
+  description: String
+  sensitive: Boolean
+  schools: [String]
   body: JSON
 }
 

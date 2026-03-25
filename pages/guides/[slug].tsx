@@ -1,13 +1,39 @@
-import fs from 'fs'
 import path from 'path'
 import Link from 'next/link'
 import { marked } from 'marked'
+import { signIn } from 'next-auth/react'
 import Header from '@/components/Header'
 
-const readFile = fs.promises.readFile
-const readdir = fs.promises.readdir
-
 export default function GuidePage({ guide }: any) {
+  // Client-side: handle gated content (should already be server-side gated, but extra safety)
+  if (guide?.gated) {
+    return (
+      <div style={{ backgroundColor: '#0B0F13', minHeight: '100vh', color: '#f1f5f9', display: 'flex', alignItems: 'center', justifyContent: 'center', flexDirection: 'column', gap: '1.5rem', fontFamily: 'system-ui' }}>
+        <Header />
+        <div style={{ paddingTop: '70px', textAlign: 'center' }}>
+          <div style={{ fontSize: '3rem', marginBottom: '1rem' }}>🔒</div>
+          <h1 style={{ fontFamily: "'Bebas Neue', system-ui", fontSize: '2rem', marginBottom: '0.5rem' }}>Sensitive Guide</h1>
+          <p style={{ color: '#9ca3af', marginBottom: '2rem', maxWidth: '400px' }}>
+            This guide is restricted. Please log in with your school account to access it.
+          </p>
+          <button
+            onClick={() => signIn('google')}
+            style={{
+              background: 'linear-gradient(135deg, #f97316, #f59e0b)', border: 'none',
+              borderRadius: '8px', padding: '0.75rem 2rem', cursor: 'pointer',
+              color: '#0B0F13', fontWeight: 700, fontSize: '1rem',
+            }}
+          >
+            Sign in to view
+          </button>
+          <div style={{ marginTop: '1.5rem' }}>
+            <Link href="/" style={{ color: '#f97316', fontSize: '0.9rem' }}>← Back to Guides</Link>
+          </div>
+        </div>
+      </div>
+    )
+  }
+
   return (
     <div style={{
       backgroundColor: '#0B0F13',
@@ -298,79 +324,69 @@ async function fetchGuideFromGitHub(slug: string): Promise<string | null> {
   return res.text()
 }
 
-export async function getStaticPaths() {
-  try {
-    const url = `https://api.github.com/repos/${GITHUB_OWNER}/${GITHUB_REPO}/contents/content/guides?ref=${GITHUB_BRANCH}`
-    const headers: Record<string, string> = { 'Accept': 'application/vnd.github.v3+json', 'Cache-Control': 'no-cache' }
-    if (process.env.GITHUB_TOKEN) headers['Authorization'] = `token ${process.env.GITHUB_TOKEN}`
-    const res = await fetch(url, { headers })
-    if (res.ok) {
-      const files: Array<{ name: string; type: string }> = await res.json()
-      return {
-        paths: files
-          .filter(f => f.type === 'file' && f.name.endsWith('.md'))
-          .map(f => ({ params: { slug: f.name.replace('.md', '') } })),
-        fallback: 'blocking'
-      }
-    }
-  } catch (_) {}
-  // Fallback to local filesystem (local dev)
-  const guidesDir = path.join(process.cwd(), 'content/guides')
-  try {
-    const files = await readdir(guidesDir)
-    return {
-      paths: files
-        .filter(file => file.endsWith('.md'))
-        .map(file => ({ params: { slug: file.replace('.md', '') } })),
-      fallback: 'blocking'
-    }
-  } catch (_) {
-    return { paths: [], fallback: 'blocking' }
-  }
-}
+export async function getServerSideProps({ params, req, res }: any) {
+  const fs = require('fs')
+  const matter = require('gray-matter')
+  const { getServerSession } = require('next-auth/next')
+  const { authOptions } = require('../api/auth/[...nextauth]')
+  const readFile = fs.promises.readFile
 
-export async function getStaticProps({ params }: any) {
   try {
-    let content: string | null = null
+    let raw: string | null = null
 
     // In production read from GitHub so TinaCMS saves appear without redeploying
     if (process.env.GITHUB_TOKEN || process.env.NODE_ENV === 'production') {
-      content = await fetchGuideFromGitHub(params.slug)
+      raw = await fetchGuideFromGitHub(params.slug)
     }
     // Fallback to local filesystem (local dev)
-    if (content === null) {
+    if (raw === null) {
       try {
         const filePath = path.join(process.cwd(), 'content/guides', `${params.slug}.md`)
-        content = await readFile(filePath, 'utf-8')
+        raw = await readFile(filePath, 'utf-8')
       } catch (_) {
         return { notFound: true }
       }
     }
-    if (content === null) return { notFound: true }
+    if (raw === null) return { notFound: true }
 
-    // Strip only the leading title (# ...) from content since we render it separately
-    const lines = content.split('\n')
-    const firstHeadingIdx = lines.findIndex(l => /^#\s/.test(l))
+    // Parse YAML frontmatter with gray-matter
+    const { data: frontmatter, content: mdBody } = matter(raw)
+
+    // If sensitive, check for a valid session
+    if (frontmatter.sensitive === true) {
+      const session = await getServerSession(req, res, authOptions)
+      if (!session) {
+        return { props: { guide: { gated: true, slug: params.slug } } }
+      }
+    }
+
+    // Strip the leading H1 title (we render it separately)
+    const lines = mdBody.split('\n')
+    const firstHeadingIdx = lines.findIndex((l: string) => /^#\s/.test(l))
     const bodyMd = firstHeadingIdx >= 0
       ? [...lines.slice(0, firstHeadingIdx), ...lines.slice(firstHeadingIdx + 1)].join('\n')
-      : content
+      : mdBody
     const bodyHtml = await marked.parse(bodyMd)
 
-    // Extract title from first heading if present, fallback to slug
-    let title = params.slug.replace(/_/g, ' ').charAt(0).toUpperCase() + params.slug.replace(/_/g, ' ').slice(1)
-    if (firstHeadingIdx >= 0) {
+    // Title: prefer frontmatter, then first H1, then slug
+    let title = params.slug.replace(/_/g, ' ').replace(/\b\w/g, (c: string) => c.toUpperCase())
+    if (frontmatter.title) {
+      title = frontmatter.title
+    } else if (firstHeadingIdx >= 0) {
       title = lines[firstHeadingIdx].replace(/^#+\s*/, '')
     }
-    
+
     return {
       props: {
-        guide: { 
+        guide: {
           title,
           body: bodyHtml,
-          slug: params.slug
+          slug: params.slug,
+          sensitive: frontmatter.sensitive ?? false,
+          schools: frontmatter.schools ?? [],
+          gated: false,
         }
-      },
-      revalidate: 30 // ISR: re-fetch from GitHub within 30s of a TinaCMS save
+      }
     }
   } catch (error) {
     return { notFound: true }

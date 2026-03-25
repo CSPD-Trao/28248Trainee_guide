@@ -1,34 +1,208 @@
 import Link from 'next/link'
-import { useState, useEffect, useRef, useCallback, useMemo } from 'react'
+import { useState, useEffect, useRef, useCallback } from 'react'
+import { useSession, signIn } from 'next-auth/react'
+import type { School } from '@/components/Header'
+import AuditLog from '@/components/AuditLog'
 
-const guideMetadata: Record<string, { title: string; description: string }> = {
-  'general_jobs': {
-    title: 'General Jobs',
-    description: 'Information about common roles and responsibilities',
-  },
-  'training_resources': {
-    title: 'Training Resources',
-    description: 'Comprehensive training materials and documentation',
-  },
-  'best_practices': {
-    title: 'Best Practices',
-    description: 'Guidelines and best practices for success',
-  },
-  'onboarding': {
-    title: 'Onboarding',
-    description: 'Get started with your new role',
-  },
+interface Article {
+  id: string
+  title: string
+  description: string
+  slug: string
+  sensitive: boolean
+  schools: string[]
 }
 
 interface CardState {
-  article: { id: string; title: string; description: string; slug: string } | null
+  article: Article | null
 }
 
+// ── Inline School Dropdown ────────────────────────────────────────────────────
+function SchoolDropdown({ schools, selectedSchool, onSchoolChange, session, onSchoolAdded }: {
+  schools: School[]
+  selectedSchool: string
+  onSchoolChange: (id: string) => void
+  session: { user?: { email?: string | null } } | null | undefined
+  onSchoolAdded: () => void
+}) {
+  const [open, setOpen] = useState(false)
+  const [filter, setFilter] = useState('')
+  const [showModal, setShowModal] = useState(false)
+  const [ageId, setAgeId] = useState('')
+  const [name, setName] = useState('')
+  const [err, setErr] = useState('')
+  const [saving, setSaving] = useState(false)
+  const ref = useRef<HTMLDivElement>(null)
+
+  useEffect(() => {
+    function close(e: MouseEvent) {
+      if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false)
+    }
+    document.addEventListener('mousedown', close)
+    return () => document.removeEventListener('mousedown', close)
+  }, [])
+
+  const filtered = schools.filter(s =>
+    s.name.toLowerCase().includes(filter.toLowerCase()) ||
+    s.ageId.toLowerCase().includes(filter.toLowerCase())
+  )
+  const label = selectedSchool ? (schools.find(s => s.ageId === selectedSchool)?.name ?? selectedSchool) : 'All Schools'
+
+  async function submit(e: React.FormEvent) {
+    e.preventDefault(); setErr(''); setSaving(true)
+    try {
+      const res = await fetch('/api/schools', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ ageId: ageId.trim(), name: name.trim() }),
+      })
+      const d = await res.json()
+      if (!res.ok) { setErr(d.error || 'Failed') }
+      else { setAgeId(''); setName(''); setShowModal(false); onSchoolAdded() }
+    } catch { setErr('Network error') }
+    finally { setSaving(false) }
+  }
+
+  return (
+    <>
+      <div ref={ref} style={{ position: 'relative' }}>
+        <button
+          onClick={() => setOpen(v => !v)}
+          style={{
+            display: 'flex', alignItems: 'center', gap: '0.5rem',
+            background: open ? 'rgba(11,15,19,0.9)' : 'rgba(11,15,19,0.7)',
+            border: `1.5px solid ${open ? '#f97316' : 'rgba(63,63,70,0.5)'}`,
+            borderRadius: '8px', padding: '0.5rem 0.9rem', cursor: 'pointer',
+            color: '#f1f5f9', fontSize: '0.88rem', fontFamily: 'system-ui',
+            transition: 'all 0.2s', whiteSpace: 'nowrap', minWidth: '140px',
+            boxShadow: open ? '0 0 12px rgba(249,115,22,0.2)' : 'none',
+          }}
+        >
+          🏫 {label}
+          <span style={{ marginLeft: 'auto', opacity: 0.6, fontSize: '0.72rem' }}>{open ? '▲' : '▼'}</span>
+        </button>
+
+        {open && (
+          <div style={{
+            position: 'absolute', top: 'calc(100% + 6px)', left: 0,
+            background: 'rgba(11,15,19,0.97)', border: '1.5px solid #f97316',
+            borderRadius: '8px', minWidth: '240px', zIndex: 1200,
+            backdropFilter: 'blur(16px)',
+            boxShadow: '0 16px 40px rgba(0,0,0,0.6), 0 0 20px rgba(249,115,22,0.15)',
+            overflow: 'hidden',
+          }}>
+            <input
+              autoFocus placeholder="Search schools..."
+              value={filter} onChange={e => setFilter(e.target.value)}
+              style={{
+                width: '100%', boxSizing: 'border-box', background: 'rgba(255,255,255,0.05)',
+                border: 'none', borderBottom: '1px solid rgba(63,63,70,0.5)',
+                color: '#f1f5f9', padding: '0.7rem 1rem', fontSize: '0.88rem', outline: 'none',
+              }}
+            />
+            <div style={{ maxHeight: '260px', overflowY: 'auto' }}>
+              {[{ ageId: '', name: 'All Schools' }, ...filtered].map(s => (
+                <div
+                  key={s.ageId}
+                  onClick={() => { onSchoolChange(s.ageId); setOpen(false); setFilter('') }}
+                  style={{
+                    padding: '0.65rem 1rem', cursor: 'pointer', fontSize: '0.88rem',
+                    color: selectedSchool === s.ageId ? '#f97316' : '#e2e8f0',
+                    fontWeight: selectedSchool === s.ageId ? 700 : 400,
+                    borderLeft: `3px solid ${selectedSchool === s.ageId ? '#f97316' : 'transparent'}`,
+                    borderBottom: '1px solid rgba(63,63,70,0.2)',
+                    transition: 'all 0.15s',
+                  }}
+                  onMouseEnter={e => { (e.currentTarget as HTMLElement).style.background = 'rgba(249,115,22,0.12)' }}
+                  onMouseLeave={e => { (e.currentTarget as HTMLElement).style.background = '' }}
+                >
+                  {s.name}{s.ageId && <span style={{ color: '#6b7280', fontSize: '0.8rem' }}> ({s.ageId})</span>}
+                </div>
+              ))}
+              {filtered.length === 0 && schools.length > 0 && (
+                <div style={{ padding: '0.65rem 1rem', color: '#6b7280', fontSize: '0.85rem' }}>No schools found</div>
+              )}
+            </div>
+            {session && (
+              <div style={{ borderTop: '1px solid rgba(63,63,70,0.4)', padding: '0.5rem' }}>
+                <button
+                  onClick={() => { setShowModal(true); setOpen(false) }}
+                  style={{
+                    width: '100%', background: 'rgba(249,115,22,0.1)', border: '1.5px solid rgba(249,115,22,0.4)',
+                    borderRadius: '6px', padding: '0.5rem', cursor: 'pointer',
+                    color: '#f97316', fontSize: '0.85rem', fontWeight: 700, fontFamily: 'system-ui',
+                  }}
+                >
+                  + Add School
+                </button>
+              </div>
+            )}
+          </div>
+        )}
+      </div>
+
+      {/* Add School Modal */}
+      {showModal && (
+        <div
+          onClick={e => { if (e.target === e.currentTarget) setShowModal(false) }}
+          style={{
+            position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.7)',
+            zIndex: 2000, display: 'flex', alignItems: 'center', justifyContent: 'center',
+            backdropFilter: 'blur(4px)',
+          }}
+        >
+          <div style={{
+            background: 'linear-gradient(135deg, #1a202c, #0f172a)',
+            border: '1.5px solid #f97316', borderRadius: '12px', padding: '2rem',
+            width: '100%', maxWidth: '420px', boxShadow: '0 24px 64px rgba(0,0,0,0.8)',
+          }}>
+            <div style={{ fontSize: '1.3rem', fontWeight: 900, color: '#f1f5f9', marginBottom: '1.5rem', fontFamily: "'Oswald', system-ui, sans-serif", letterSpacing: '0.04em' }}>
+              🏫 Add School
+            </div>
+            <form onSubmit={submit}>
+              {(['ageId|AgeID (e.g. 4756)', 'name|School name'] as const).map((field) => {
+                const [key, placeholder] = field.split('|') as ['ageId' | 'name', string]
+                return (
+                  <input
+                    key={key}
+                    placeholder={placeholder}
+                    value={key === 'ageId' ? ageId : name}
+                    onChange={e => key === 'ageId' ? setAgeId(e.target.value) : setName(e.target.value)}
+                    required
+                    style={{
+                      width: '100%', boxSizing: 'border-box',
+                      background: 'rgba(11,15,19,0.8)', border: '1.5px solid rgba(63,63,70,0.7)',
+                      borderRadius: '8px', padding: '0.7rem 1rem', color: '#f1f5f9',
+                      fontSize: '0.95rem', outline: 'none', marginBottom: '1rem',
+                    }}
+                  />
+                )
+              })}
+              {err && <div style={{ color: '#f87171', fontSize: '0.85rem', marginBottom: '0.75rem' }}>⚠ {err}</div>}
+              <div style={{ display: 'flex', gap: '0.75rem', justifyContent: 'flex-end' }}>
+                <button type="button" onClick={() => setShowModal(false)} style={{ background: 'transparent', border: '1.5px solid rgba(63,63,70,0.7)', borderRadius: '8px', padding: '0.6rem 1.2rem', cursor: 'pointer', color: '#9ca3af', fontSize: '0.9rem', fontFamily: 'system-ui' }}>Cancel</button>
+                <button type="submit" disabled={saving} style={{ background: 'linear-gradient(135deg, #f97316, #f59e0b)', border: 'none', borderRadius: '8px', padding: '0.6rem 1.4rem', cursor: saving ? 'not-allowed' : 'pointer', color: '#0B0F13', fontSize: '0.9rem', fontWeight: 700, fontFamily: 'system-ui', opacity: saving ? 0.5 : 1 }}>
+                  {saving ? 'Adding...' : 'Add School'}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+    </>
+  )
+}
+// ─────────────────────────────────────────────────────────────────────────────
+
 export default function Home() {
-  const [articles, setArticles] = useState<Array<{ id: string; title: string; description: string; slug: string }>>([])
+  const { data: session } = useSession()
+  const [allArticles, setAllArticles] = useState<Article[]>([])
+  const [articles, setArticles] = useState<Article[]>([])
+  const [schools, setSchools] = useState<School[]>([])
+  const [selectedSchool, setSelectedSchool] = useState('')
   const [loading, setLoading] = useState(true)
   const [searchQuery, setSearchQuery] = useState('')
-  const [searchResults, setSearchResults] = useState<Array<{ id: string; title: string; description: string; slug: string }>>([])
+  const [searchResults, setSearchResults] = useState<Article[]>([])
   const [showSearchResults, setShowSearchResults] = useState(false)
   const [viewMode, setViewMode] = useState<'queue' | 'grid'>('queue')
   const [buttonHovered, setButtonHovered] = useState(false)
@@ -56,52 +230,57 @@ export default function Home() {
   const [cycleKeys, setCycleKeys] = useState({ l1: 0, l2: 0, l3: 0, l4: 0, l5: 0 })
 
   useEffect(() => {
-    const fetchGuides = async () => {
+    const fetchData = async () => {
       try {
-        const response = await fetch('/api/guides')
-        const data = await response.json()
-        
-        const loadedArticles = data.guides.map((slug: string) => ({
-          id: slug,
-          slug: slug,
-          title: guideMetadata[slug]?.title || slug.replace(/_/g, ' '),
-          description: guideMetadata[slug]?.description || 'Learn more about this topic',
+        const [guidesRes, schoolsRes] = await Promise.all([
+          fetch('/api/guides'),
+          fetch('/api/schools'),
+        ])
+        const guidesData = await guidesRes.json()
+        const schoolsData = await schoolsRes.json()
+
+        const loadedArticles: Article[] = guidesData.guides.map((g: Article) => ({
+          id: g.slug,
+          slug: g.slug,
+          title: g.title,
+          description: g.description,
+          sensitive: g.sensitive ?? false,
+          schools: g.schools ?? [],
         }))
-        
+
+        setAllArticles(loadedArticles)
         setArticles(loadedArticles)
-        
-        // Initialize layers with first 5 articles
-        if (loadedArticles.length > 0) {
-          setLayer1({ article: loadedArticles[0] })
-          usedOnLayer1.current.add(loadedArticles[0].id)
-        }
-        if (loadedArticles.length > 1) {
-          setLayer2({ article: loadedArticles[1] })
-          usedOnLayer2.current.add(loadedArticles[1].id)
-        }
-        if (loadedArticles.length > 2) {
-          setLayer3({ article: loadedArticles[2] })
-          usedOnLayer3.current.add(loadedArticles[2].id)
-        }
-        if (loadedArticles.length > 3) {
-          setLayer4({ article: loadedArticles[3] })
-          usedOnLayer4.current.add(loadedArticles[3].id)
-        }
-        if (loadedArticles.length > 4) {
-          setLayer5({ article: loadedArticles[4] })
-          usedOnLayer5.current.add(loadedArticles[4].id)
-        }
+        setSchools(schoolsData.schools ?? [])
+
+        // Initialize queue layers with first 5 articles
+        if (loadedArticles.length > 0) { setLayer1({ article: loadedArticles[0] }); usedOnLayer1.current.add(loadedArticles[0].id) }
+        if (loadedArticles.length > 1) { setLayer2({ article: loadedArticles[1] }); usedOnLayer2.current.add(loadedArticles[1].id) }
+        if (loadedArticles.length > 2) { setLayer3({ article: loadedArticles[2] }); usedOnLayer3.current.add(loadedArticles[2].id) }
+        if (loadedArticles.length > 3) { setLayer4({ article: loadedArticles[3] }); usedOnLayer4.current.add(loadedArticles[3].id) }
+        if (loadedArticles.length > 4) { setLayer5({ article: loadedArticles[4] }); usedOnLayer5.current.add(loadedArticles[4].id) }
       } catch (error) {
-        console.error('Failed to fetch guides:', error)
+        console.error('Failed to fetch data:', error)
       } finally {
         setLoading(false)
       }
     }
-
-    fetchGuides()
+    fetchData()
   }, [])
 
-  const getNextArticle = (usedSet: React.MutableRefObject<Set<string>>) => {
+  // Re-filter articles when school selection changes
+  useEffect(() => {
+    if (!selectedSchool) {
+      setArticles(allArticles)
+    } else {
+      setArticles(allArticles.filter(a => a.schools.length === 0 || a.schools.includes(selectedSchool)))
+    }
+  }, [selectedSchool, allArticles])
+
+  function refreshSchools() {
+    fetch('/api/schools').then(r => r.json()).then(d => setSchools(d.schools ?? []))
+  }
+
+  const getNextArticle = useCallback((usedSet: React.MutableRefObject<Set<string>>) => {
     for (const article of articles) {
       if (!usedSet.current.has(article.id)) {
         usedSet.current.add(article.id)
@@ -115,7 +294,7 @@ export default function Home() {
       return articles[0]
     }
     return null
-  }
+  }, [articles])
 
   const handleCardExit = (layer: 'layer1' | 'layer2' | 'layer3' | 'layer4' | 'layer5') => {
     if (layer === 'layer1') {
@@ -149,7 +328,7 @@ export default function Home() {
   const handleSearch = useCallback((query: string) => {
     setSearchQuery(query)
     if (query.trim()) {
-      const filtered = articles.filter(article => 
+      const filtered = allArticles.filter(article =>
         article.title.toLowerCase().includes(query.toLowerCase()) ||
         article.description.toLowerCase().includes(query.toLowerCase())
       )
@@ -158,114 +337,125 @@ export default function Home() {
     } else {
       setShowSearchResults(false)
     }
-  }, [articles])
+  }, [allArticles])
 
   const CardComponent = ({ card, direction, layer, onExit }: { card: CardState; direction: 'left' | 'right'; layer: 'layer1' | 'layer2' | 'layer3' | 'layer4' | 'layer5'; onExit: () => void }) => {
     if (!card.article) return null
 
     const [isHovered, setIsHovered] = useState(false)
+    const isSensitiveGated = card.article.sensitive && !session
 
-    return (
-      <Link href={`/guides/${card.article.slug}`}>
-        <div
-          style={{
-            background: 'linear-gradient(135deg, #1a202c 0%, #0f172a 100%)',
-            border: isHovered ? '1px solid #f97316' : '1px solid #3f3f46',
-            borderRadius: '6px',
-            padding: '1rem',
-            cursor: 'pointer',
-            display: 'flex',
-            flexDirection: 'column',
-            width: 'max-content',
-            maxWidth: '350px',
-            minHeight: '70px',
-            maxHeight: '120px',
-            animation: `${direction === 'left' ? 'cycleLeft' : 'cycleRight'} 25s linear forwards`,
-            transition: 'all 0.3s ease-in-out',
-            boxShadow: isHovered ? '0 0 20px rgba(249, 115, 22, 0.3)' : 'none',
-          }}
-          onMouseEnter={() => setIsHovered(true)}
-          onMouseLeave={() => setIsHovered(false)}
-          onAnimationEnd={() => onExit()}
-        >
-          <h3 style={{
-            fontSize: '0.85rem',
-            fontWeight: 700,
-            marginBottom: '0.3rem',
-            color: '#f1f5f9',
-            lineHeight: '1.2',
-            fontFamily: "'Oswald', system-ui, sans-serif",
-          }}>
-            {card.article.title}
-          </h3>
-          <p style={{
-            fontSize: '0.7rem',
-            color: '#a0aec0',
-            lineHeight: '1.3',
-            margin: 0,
-            maxWidth: '330px',
-            overflow: 'hidden',
-            textOverflow: 'ellipsis',
-            display: '-webkit-box',
-            WebkitLineClamp: 3,
-            WebkitBoxOrient: 'vertical',
-          }}>
-            {card.article.description}
-          </p>
-        </div>
-      </Link>
+    const cardContent = (
+      <div
+        style={{
+          background: 'linear-gradient(135deg, #1a202c 0%, #0f172a 100%)',
+          border: isHovered ? '1px solid #f97316' : '1px solid #3f3f46',
+          borderRadius: '6px',
+          padding: '1rem',
+          cursor: 'pointer',
+          display: 'flex',
+          flexDirection: 'column',
+          width: 'max-content',
+          maxWidth: '350px',
+          minHeight: '70px',
+          maxHeight: '120px',
+          animation: `${direction === 'left' ? 'cycleLeft' : 'cycleRight'} 25s linear forwards`,
+          transition: 'all 0.3s ease-in-out',
+          boxShadow: isHovered ? '0 0 20px rgba(249, 115, 22, 0.3)' : 'none',
+          position: 'relative',
+        }}
+        onMouseEnter={() => setIsHovered(true)}
+        onMouseLeave={() => setIsHovered(false)}
+        onAnimationEnd={() => onExit()}
+      >
+        {isSensitiveGated && (
+          <div style={{ position: 'absolute', inset: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 2, gap: '0.4rem', color: '#f97316', fontSize: '0.8rem', fontWeight: 700 }}>
+            🔒 Login to view
+          </div>
+        )}
+        <h3 style={{
+          fontSize: '0.85rem', fontWeight: 700, marginBottom: '0.3rem',
+          color: '#f1f5f9', lineHeight: '1.2', fontFamily: "'Oswald', system-ui, sans-serif",
+          filter: isSensitiveGated ? 'blur(5px)' : 'none',
+          userSelect: isSensitiveGated ? 'none' : 'auto',
+        }}>
+          {card.article.title}
+        </h3>
+        <p style={{
+          fontSize: '0.7rem', color: '#a0aec0', lineHeight: '1.3', margin: 0,
+          maxWidth: '330px', overflow: 'hidden', textOverflow: 'ellipsis',
+          display: '-webkit-box', WebkitLineClamp: 3, WebkitBoxOrient: 'vertical',
+          filter: isSensitiveGated ? 'blur(4px)' : 'none',
+          userSelect: isSensitiveGated ? 'none' : 'auto',
+        }}>
+          {card.article.description}
+        </p>
+      </div>
     )
+
+    if (isSensitiveGated) {
+      return <div onClick={() => signIn()}>{cardContent}</div>
+    }
+    return <Link href={`/guides/${card.article.slug}`}>{cardContent}</Link>
   }
 
-  const GridCard = ({ article }: { article: { id: string; title: string; description: string; slug: string } }) => {
+  const GridCard = ({ article }: { article: Article }) => {
     const [isHovered, setIsHovered] = useState(false)
+    const isSensitiveGated = article.sensitive && !session
 
-    return (
-      <Link href={`/guides/${article.slug}`}>
-        <div
-          style={{
-            background: 'linear-gradient(135deg, #1a202c 0%, #0f172a 100%)',
-            border: isHovered ? '2px solid #f97316' : '1px solid #3f3f46',
-            borderRadius: '8px',
-            padding: '1.5rem',
-            cursor: 'pointer',
-            display: 'flex',
-            flexDirection: 'column',
-            height: '100%',
-            transition: 'all 0.3s ease-in-out',
-            boxShadow: isHovered ? '0 0 20px rgba(249, 115, 22, 0.3)' : 'none',
-            transform: isHovered ? 'translateY(-4px)' : 'translateY(0)',
-          }}
-          onMouseEnter={() => setIsHovered(true)}
-          onMouseLeave={() => setIsHovered(false)}
-        >
-          <h3 style={{
-            fontSize: '1rem',
-            fontWeight: 700,
-            marginBottom: '0.5rem',
-            color: '#f1f5f9',
-            lineHeight: '1.3',
-            fontFamily: "'Oswald', system-ui, sans-serif",
-          }}>
-            {article.title}
-          </h3>
-          <p style={{
-            fontSize: '0.85rem',
-            color: '#a0aec0',
-            lineHeight: '1.5',
-            margin: 0,
-            flex: 1,
-            overflow: 'hidden',
-            textOverflow: 'ellipsis',
-            display: '-webkit-box',
-            WebkitLineClamp: 4,
-            WebkitBoxOrient: 'vertical',
-          }}>
-            {article.description}
-          </p>
-        </div>
-      </Link>
+    const cardContent = (
+      <div
+        style={{
+          background: 'linear-gradient(135deg, #1a202c 0%, #0f172a 100%)',
+          border: isHovered ? '2px solid #f97316' : '1px solid #3f3f46',
+          borderRadius: '8px',
+          padding: '1.5rem',
+          cursor: 'pointer',
+          display: 'flex',
+          flexDirection: 'column',
+          height: '100%',
+          transition: 'all 0.3s ease-in-out',
+          boxShadow: isHovered ? '0 0 20px rgba(249, 115, 22, 0.3)' : 'none',
+          transform: isHovered ? 'translateY(-4px)' : 'translateY(0)',
+          position: 'relative',
+        }}
+        onMouseEnter={() => setIsHovered(true)}
+        onMouseLeave={() => setIsHovered(false)}
+      >
+        {isSensitiveGated && (
+          <div style={{ position: 'absolute', inset: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 2, flexDirection: 'column', gap: '0.4rem', color: '#f97316', fontSize: '0.9rem', fontWeight: 700 }}>
+            🔒<span>Login to view</span>
+          </div>
+        )}
+        <h3 style={{
+          fontSize: '1rem', fontWeight: 700, marginBottom: '0.5rem',
+          color: '#f1f5f9', lineHeight: '1.3', fontFamily: "'Oswald', system-ui, sans-serif",
+          filter: isSensitiveGated ? 'blur(5px)' : 'none',
+          userSelect: isSensitiveGated ? 'none' : 'auto',
+        }}>
+          {article.title}
+        </h3>
+        <p style={{
+          fontSize: '0.85rem', color: '#a0aec0', lineHeight: '1.5', margin: 0, flex: 1,
+          overflow: 'hidden', textOverflow: 'ellipsis', display: '-webkit-box',
+          WebkitLineClamp: 4, WebkitBoxOrient: 'vertical',
+          filter: isSensitiveGated ? 'blur(4px)' : 'none',
+          userSelect: isSensitiveGated ? 'none' : 'auto',
+        }}>
+          {article.description}
+        </p>
+        {article.sensitive && !isSensitiveGated && (
+          <div style={{ marginTop: '0.75rem', fontSize: '0.75rem', color: '#f97316', display: 'flex', alignItems: 'center', gap: '0.3rem' }}>
+            🔒 Sensitive
+          </div>
+        )}
+      </div>
     )
+
+    if (isSensitiveGated) {
+      return <div style={{ height: '100%' }} onClick={() => signIn()}>{cardContent}</div>
+    }
+    return <Link href={`/guides/${article.slug}`} style={{ height: '100%' }}>{cardContent}</Link>
   }
 
   return (
@@ -545,7 +735,7 @@ export default function Home() {
           </div>
         </Link>
         
-        <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', flexWrap: 'nowrap' }}>
           <button
             onClick={() => setViewMode(viewMode === 'queue' ? 'grid' : 'queue')}
             style={{
@@ -559,13 +749,24 @@ export default function Home() {
               fontWeight: 600,
               transition: 'all 0.3s ease',
               fontFamily: 'system-ui',
+              whiteSpace: 'nowrap',
             }}
             onMouseEnter={() => setButtonHovered(true)}
             onMouseLeave={() => setButtonHovered(false)}
           >
             {viewMode === 'queue' ? '📊 Grid View' : '📜 Queue View'}
           </button>
-          
+
+          {/* School Dropdown */}
+          <SchoolDropdown
+            schools={schools}
+            selectedSchool={selectedSchool}
+            onSchoolChange={setSelectedSchool}
+            session={session}
+            onSchoolAdded={refreshSchools}
+          />
+
+          {/* Search */}
           <div className="header-search-wrapper">
           <div className="header-search">
             <span className="header-search-icon">🔍</span>
@@ -574,9 +775,7 @@ export default function Home() {
               placeholder="Search guides..." 
               value={searchQuery}
               onChange={(e) => handleSearch(e.target.value)}
-              style={{
-                color: '#f1f5f9',
-              }}
+              style={{ color: '#f1f5f9' }}
             />
           </div>
           
@@ -830,6 +1029,9 @@ export default function Home() {
         )
       )}
       </div>
+
+      {/* Edits Made — read-only audit log */}
+      <AuditLog session={session} />
 
       {/* Floating Edit Button */}
       <Link href="/editor" style={{ textDecoration: 'none' }}>

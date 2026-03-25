@@ -168,6 +168,9 @@ export type DocumentNode = Guide | Folder;
 export type Guide = Node & Document & {
   __typename?: 'Guide';
   title?: Maybe<Scalars['String']['output']>;
+  description?: Maybe<Scalars['String']['output']>;
+  sensitive?: Maybe<Scalars['Boolean']['output']>;
+  schools?: Maybe<Array<Maybe<Scalars['String']['output']>>>;
   body?: Maybe<Scalars['JSON']['output']>;
   id: Scalars['ID']['output'];
   _sys: SystemInfo;
@@ -181,6 +184,11 @@ export type StringFilter = {
   in?: InputMaybe<Array<InputMaybe<Scalars['String']['input']>>>;
 };
 
+export type BooleanFilter = {
+  eq?: InputMaybe<Scalars['Boolean']['input']>;
+  exists?: InputMaybe<Scalars['Boolean']['input']>;
+};
+
 export type RichTextFilter = {
   startsWith?: InputMaybe<Scalars['String']['input']>;
   eq?: InputMaybe<Scalars['String']['input']>;
@@ -189,6 +197,9 @@ export type RichTextFilter = {
 
 export type GuideFilter = {
   title?: InputMaybe<StringFilter>;
+  description?: InputMaybe<StringFilter>;
+  sensitive?: InputMaybe<BooleanFilter>;
+  schools?: InputMaybe<StringFilter>;
   body?: InputMaybe<RichTextFilter>;
 };
 
@@ -272,17 +283,20 @@ export type DocumentMutation = {
 
 export type GuideMutation = {
   title?: InputMaybe<Scalars['String']['input']>;
+  description?: InputMaybe<Scalars['String']['input']>;
+  sensitive?: InputMaybe<Scalars['Boolean']['input']>;
+  schools?: InputMaybe<Array<InputMaybe<Scalars['String']['input']>>>;
   body?: InputMaybe<Scalars['JSON']['input']>;
 };
 
-export type GuidePartsFragment = { __typename: 'Guide', title?: string | null, body?: any | null };
+export type GuidePartsFragment = { __typename: 'Guide', title?: string | null, description?: string | null, sensitive?: boolean | null, schools?: Array<string | null> | null, body?: any | null };
 
 export type GuideQueryVariables = Exact<{
   relativePath: Scalars['String']['input'];
 }>;
 
 
-export type GuideQuery = { __typename?: 'Query', guide: { __typename: 'Guide', id: string, title?: string | null, body?: any | null, _sys: { __typename?: 'SystemInfo', filename: string, basename: string, hasReferences?: boolean | null, breadcrumbs: Array<string>, path: string, relativePath: string, extension: string } } };
+export type GuideQuery = { __typename?: 'Query', guide: { __typename: 'Guide', id: string, title?: string | null, description?: string | null, sensitive?: boolean | null, schools?: Array<string | null> | null, body?: any | null, _sys: { __typename?: 'SystemInfo', filename: string, basename: string, hasReferences?: boolean | null, breadcrumbs: Array<string>, path: string, relativePath: string, extension: string } } };
 
 export type GuideConnectionQueryVariables = Exact<{
   before?: InputMaybe<Scalars['String']['input']>;
@@ -294,12 +308,15 @@ export type GuideConnectionQueryVariables = Exact<{
 }>;
 
 
-export type GuideConnectionQuery = { __typename?: 'Query', guideConnection: { __typename?: 'GuideConnection', totalCount: number, pageInfo: { __typename?: 'PageInfo', hasPreviousPage: boolean, hasNextPage: boolean, startCursor: string, endCursor: string }, edges?: Array<{ __typename?: 'GuideConnectionEdges', cursor: string, node?: { __typename: 'Guide', id: string, title?: string | null, body?: any | null, _sys: { __typename?: 'SystemInfo', filename: string, basename: string, hasReferences?: boolean | null, breadcrumbs: Array<string>, path: string, relativePath: string, extension: string } } | null } | null> | null } };
+export type GuideConnectionQuery = { __typename?: 'Query', guideConnection: { __typename?: 'GuideConnection', totalCount: number, pageInfo: { __typename?: 'PageInfo', hasPreviousPage: boolean, hasNextPage: boolean, startCursor: string, endCursor: string }, edges?: Array<{ __typename?: 'GuideConnectionEdges', cursor: string, node?: { __typename: 'Guide', id: string, title?: string | null, description?: string | null, sensitive?: boolean | null, schools?: Array<string | null> | null, body?: any | null, _sys: { __typename?: 'SystemInfo', filename: string, basename: string, hasReferences?: boolean | null, breadcrumbs: Array<string>, path: string, relativePath: string, extension: string } } | null } | null> | null } };
 
 export const GuidePartsFragmentDoc = gql`
     fragment GuideParts on Guide {
   __typename
   title
+  description
+  sensitive
+  schools
   body
 }
     `;
