@@ -28,8 +28,6 @@ async function getBackend(): Promise<NextApiHandler | null> {
         collectionName: 'tinacms',
         dbName: 'tinacms',
         mongoUri: process.env.MONGODB_URI,
-        // Fail fast instead of hanging for 30s
-        clientOptions: { serverSelectionTimeoutMS: 5000 },
       }),
     })
 
