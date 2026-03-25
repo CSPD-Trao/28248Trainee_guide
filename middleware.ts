@@ -7,6 +7,11 @@ export async function middleware(request: NextRequest) {
 
   // Protect TinaCMS API routes
   if (pathname.startsWith('/api/tina')) {
+    // Skip auth check in local dev when NEXTAUTH_SECRET is not configured
+    if (!process.env.NEXTAUTH_SECRET) {
+      return NextResponse.next()
+    }
+
     const token = await getToken({
       req: request,
       secret: process.env.NEXTAUTH_SECRET,
