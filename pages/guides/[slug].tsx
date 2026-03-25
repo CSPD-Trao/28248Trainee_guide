@@ -348,10 +348,12 @@ export async function getStaticProps({ params }: any) {
     }
     if (content === null) return { notFound: true }
 
-    // Strip the leading title (# ...) from content since we render it separately
+    // Strip only the leading title (# ...) from content since we render it separately
     const lines = content.split('\n')
     const firstHeadingIdx = lines.findIndex(l => /^#\s/.test(l))
-    const bodyMd = firstHeadingIdx >= 0 ? lines.slice(firstHeadingIdx + 1).join('\n') : content
+    const bodyMd = firstHeadingIdx >= 0
+      ? [...lines.slice(0, firstHeadingIdx), ...lines.slice(firstHeadingIdx + 1)].join('\n')
+      : content
     const bodyHtml = await marked.parse(bodyMd)
 
     // Extract title from first heading if present, fallback to slug
