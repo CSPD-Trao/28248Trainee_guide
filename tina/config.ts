@@ -2,8 +2,10 @@ import { defineConfig } from 'tinacms'
 
 export default defineConfig({
   branch: process.env.GITHUB_BRANCH || 'main',
-  clientId: process.env.TINA_CLIENT_ID || null,
-  token: process.env.TINA_TOKEN || null,
+  clientId: null,
+  token: null,
+
+  contentApiUrlOverride: '/api/tina/gql',
 
   build: {
     outputFolder: 'admin',
