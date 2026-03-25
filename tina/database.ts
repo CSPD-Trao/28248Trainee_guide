@@ -4,12 +4,13 @@
 //
 // In production (MONGODB_URI set): uses MongoDB Atlas + GitHub for persistence.
 // In local dev (no MONGODB_URI): uses the built-in local Level DB (port 9000).
-import { createDatabase, createLocalDatabase } from '@tinacms/datalayer'
+import { createDatabase, createLocalDatabase, FilesystemBridge } from '@tinacms/datalayer'
 import { MongodbLevel } from 'mongodb-level'
 import { GitHubProvider } from 'tinacms-gitprovider-github'
 
 export default process.env.MONGODB_URI
   ? createDatabase({
+      bridge: new FilesystemBridge(process.cwd()),
       gitProvider: new GitHubProvider({
         owner: process.env.GITHUB_OWNER || 'CSPD-Trao',
         repo: process.env.GITHUB_REPO || '28248Trainee_guide',

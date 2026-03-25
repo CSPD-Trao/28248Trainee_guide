@@ -285,31 +285,68 @@ export default function GuidePage({ guide }: any) {
   )
 }
 
+const GITHUB_OWNER = process.env.GITHUB_OWNER || 'CSPD-Trao'
+const GITHUB_REPO = process.env.GITHUB_REPO || '28248Trainee_guide'
+const GITHUB_BRANCH = process.env.GITHUB_BRANCH || 'main'
+
+async function fetchGuideFromGitHub(slug: string): Promise<string | null> {
+  const url = `https://raw.githubusercontent.com/${GITHUB_OWNER}/${GITHUB_REPO}/${GITHUB_BRANCH}/content/guides/${slug}.md`
+  const headers: Record<string, string> = { 'Cache-Control': 'no-cache' }
+  if (process.env.GITHUB_TOKEN) headers['Authorization'] = `token ${process.env.GITHUB_TOKEN}`
+  const res = await fetch(url, { headers })
+  if (!res.ok) return null
+  return res.text()
+}
+
 export async function getStaticPaths() {
+  try {
+    const url = `https://api.github.com/repos/${GITHUB_OWNER}/${GITHUB_REPO}/contents/content/guides?ref=${GITHUB_BRANCH}`
+    const headers: Record<string, string> = { 'Accept': 'application/vnd.github.v3+json', 'Cache-Control': 'no-cache' }
+    if (process.env.GITHUB_TOKEN) headers['Authorization'] = `token ${process.env.GITHUB_TOKEN}`
+    const res = await fetch(url, { headers })
+    if (res.ok) {
+      const files: Array<{ name: string; type: string }> = await res.json()
+      return {
+        paths: files
+          .filter(f => f.type === 'file' && f.name.endsWith('.md'))
+          .map(f => ({ params: { slug: f.name.replace('.md', '') } })),
+        fallback: 'blocking'
+      }
+    }
+  } catch (_) {}
+  // Fallback to local filesystem (local dev)
   const guidesDir = path.join(process.cwd(), 'content/guides')
   try {
     const files = await readdir(guidesDir)
-    
     return {
       paths: files
         .filter(file => file.endsWith('.md'))
-        .map(file => ({
-          params: { slug: file.replace('.md', '') }
-        })),
-      fallback: false
+        .map(file => ({ params: { slug: file.replace('.md', '') } })),
+      fallback: 'blocking'
     }
-  } catch (error) {
-    return {
-      paths: [],
-      fallback: false
-    }
+  } catch (_) {
+    return { paths: [], fallback: 'blocking' }
   }
 }
 
 export async function getStaticProps({ params }: any) {
   try {
-    const filePath = path.join(process.cwd(), 'content/guides', `${params.slug}.md`)
-    const content = await readFile(filePath, 'utf-8')
+    let content: string | null = null
+
+    // In production read from GitHub so TinaCMS saves appear without redeploying
+    if (process.env.GITHUB_TOKEN || process.env.NODE_ENV === 'production') {
+      content = await fetchGuideFromGitHub(params.slug)
+    }
+    // Fallback to local filesystem (local dev)
+    if (content === null) {
+      try {
+        const filePath = path.join(process.cwd(), 'content/guides', `${params.slug}.md`)
+        content = await readFile(filePath, 'utf-8')
+      } catch (_) {
+        return { notFound: true }
+      }
+    }
+    if (content === null) return { notFound: true }
 
     // Strip the leading title (# ...) from content since we render it separately
     const lines = content.split('\n')
@@ -331,11 +368,9 @@ export async function getStaticProps({ params }: any) {
           slug: params.slug
         }
       },
-      revalidate: 3600 // ISR: regenerate every hour
+      revalidate: 30 // ISR: re-fetch from GitHub within 30s of a TinaCMS save
     }
   } catch (error) {
-    return {
-      notFound: true
-    }
+    return { notFound: true }
   }
 }
