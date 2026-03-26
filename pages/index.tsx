@@ -268,13 +268,6 @@ export default function Home() {
         setAllArticles(loadedArticles)
         setArticles(loadedArticles)
         setSchools(schoolsData.schools ?? [])
-
-        // Initialize queue layers with first 5 articles
-        if (loadedArticles.length > 0) { setLayer1({ article: loadedArticles[0] }); usedOnLayer1.current.add(loadedArticles[0].id) }
-        if (loadedArticles.length > 1) { setLayer2({ article: loadedArticles[1] }); usedOnLayer2.current.add(loadedArticles[1].id) }
-        if (loadedArticles.length > 2) { setLayer3({ article: loadedArticles[2] }); usedOnLayer3.current.add(loadedArticles[2].id) }
-        if (loadedArticles.length > 3) { setLayer4({ article: loadedArticles[3] }); usedOnLayer4.current.add(loadedArticles[3].id) }
-        if (loadedArticles.length > 4) { setLayer5({ article: loadedArticles[4] }); usedOnLayer5.current.add(loadedArticles[4].id) }
       } catch (error) {
         console.error('Failed to fetch data:', error)
       } finally {
@@ -292,6 +285,27 @@ export default function Home() {
       setArticles(allArticles.filter(a => a.schools.length === 0 || a.schools.includes(selectedSchool)))
     }
   }, [selectedSchool, allArticles])
+
+  // Re-initialize queue layers whenever the filtered article list changes
+  useEffect(() => {
+    if (articles.length === 0) return
+    usedOnLayer1.current = new Set()
+    usedOnLayer2.current = new Set()
+    usedOnLayer3.current = new Set()
+    usedOnLayer4.current = new Set()
+    usedOnLayer5.current = new Set()
+
+    const a = articles
+    if (a[0]) { setLayer1({ article: a[0] }); usedOnLayer1.current.add(a[0].id) }
+    if (a[1]) { setLayer2({ article: a[1] }); usedOnLayer2.current.add(a[1].id) }
+    if (a[2]) { setLayer3({ article: a[2] }); usedOnLayer3.current.add(a[2].id) }
+    if (a[3]) { setLayer4({ article: a[3] }); usedOnLayer4.current.add(a[3].id) }
+    if (a[4]) { setLayer5({ article: a[4] }); usedOnLayer5.current.add(a[4].id) }
+
+    cycleCount1.current += 1; cycleCount2.current += 1; cycleCount3.current += 1
+    cycleCount4.current += 1; cycleCount5.current += 1
+    setCycleKeys(k => ({ l1: cycleCount1.current, l2: cycleCount2.current, l3: cycleCount3.current, l4: cycleCount4.current, l5: cycleCount5.current }))
+  }, [articles])
 
   function refreshSchools() {
     fetch('/api/schools').then(r => r.json()).then(d => setSchools(d.schools ?? []))
