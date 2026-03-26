@@ -1,19 +1,14 @@
 ---
-title: TESTING!!!
+title: General Jobs
 ---
 
----
-title: "General Jobs"
-description: "Information about common roles and responsibilities"
-sensitive: false
-schools: []
----
+***
 
-![]( https://res.cloudinary.com/dgrperna7/image/upload/v1774312070/samples/chair.png)
+![](https://res.cloudinary.com/dgrperna7/image/upload/v1774312070/samples/chair.png)
 
 # General Jobs
 
-A daily checklist of tasks to be completed. (TESTING???)
+A daily checklist of tasks to be completed. 
 
 ***
 
@@ -25,7 +20,7 @@ Review any outstanding tickets from the previous day
 
 ## Classroom Walk-Around
 
-Try to walk around at least twice a day just to show presense
+Try to walk around at least twice a day just to show presence
 
 ***
 
