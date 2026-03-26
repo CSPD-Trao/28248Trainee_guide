@@ -272,39 +272,30 @@ export default function Home() {
     }
   }, [selectedSchool, allArticles])
 
-  /** Move items from the queue into random empty lanes */
-  const drainQueue = useCallback(() => {
+  /** When a card finishes animating out, return it to the queue and immediately fill empty lanes — all in one state update so there's no visible gap */
+  const handleCardExit = useCallback((laneIndex: number) => {
     setLanes(prev => {
       const next = [...prev]
+      // Return exiting card to queue
+      const exiting = next[laneIndex]
+      if (exiting) queue.current.push(exiting)
+      next[laneIndex] = null
+
+      // Immediately drain queue into all empty lanes (including the one just freed)
       const emptyIndices = next.map((v, i) => v === null ? i : -1).filter(i => i >= 0)
-      // Shuffle empty indices so placement is random
       for (let i = emptyIndices.length - 1; i > 0; i--) {
         const j = Math.floor(Math.random() * (i + 1));
         [emptyIndices[i], emptyIndices[j]] = [emptyIndices[j], emptyIndices[i]]
       }
-      let changed = false
       for (const idx of emptyIndices) {
         if (queue.current.length === 0) break
         next[idx] = queue.current.shift()!
         laneCounters.current[idx] += 1
-        changed = true
       }
-      if (changed) setLaneKeys([...laneCounters.current])
+      setLaneKeys([...laneCounters.current])
       return next
     })
   }, [])
-
-  /** When a card finishes animating out, return it to the queue and fill empty lanes */
-  const handleCardExit = useCallback((laneIndex: number) => {
-    setLanes(prev => {
-      const next = [...prev]
-      const exiting = next[laneIndex]
-      if (exiting) queue.current.push(exiting)
-      next[laneIndex] = null
-      return next
-    })
-    setTimeout(() => drainQueue(), 0)
-  }, [drainQueue])
 
   // Reset queue + lanes whenever filtered articles change
   useEffect(() => {
@@ -316,12 +307,22 @@ export default function Home() {
       [shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]]
     }
     queue.current = shuffled
-    // Clear all lanes then drain
-    setLanes([null, null, null, null, null])
-    laneCounters.current = laneCounters.current.map(c => c + 1)
+    // Immediately fill lanes from queue in one go
+    const newLanes: (Article | null)[] = [null, null, null, null, null]
+    const indices = [0, 1, 2, 3, 4]
+    // Shuffle lane order for random placement
+    for (let i = 4; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1));
+      [indices[i], indices[j]] = [indices[j], indices[i]]
+    }
+    for (const idx of indices) {
+      if (queue.current.length === 0) break
+      newLanes[idx] = queue.current.shift()!
+      laneCounters.current[idx] += 1
+    }
+    setLanes(newLanes)
     setLaneKeys([...laneCounters.current])
-    setTimeout(() => drainQueue(), 0)
-  }, [articles, drainQueue])
+  }, [articles])
 
   function refreshSchools() {
     fetch('/api/schools').then(r => r.json()).then(d => setSchools(d.schools ?? []))
