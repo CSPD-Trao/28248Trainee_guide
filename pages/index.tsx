@@ -1,6 +1,7 @@
 import Link from 'next/link'
 import { useState, useEffect, useRef, useCallback } from 'react'
 import { createPortal } from 'react-dom'
+import { useRouter } from 'next/router'
 import { useSession, signIn } from 'next-auth/react'
 import type { School } from '@/components/Header'
 import AuditLog from '@/components/AuditLog'
@@ -218,6 +219,7 @@ function SchoolDropdown({ schools, selectedSchool, onSchoolChange, session, onSc
 
 export default function Home() {
   const { data: session } = useSession()
+  const router = useRouter()
   const [allArticles, setAllArticles] = useState<Article[]>([])
   const [articles, setArticles] = useState<Article[]>([])
   const [schools, setSchools] = useState<School[]>([])
@@ -365,16 +367,17 @@ export default function Home() {
             return dist < bestDist ? c : best
           }, { x: Infinity } as Car)
 
-          if (closest.x !== Infinity) {
+          if (closest.x !== Infinity && car.speed > closest.speed) {
             const gap = car.direction === 'left'
               ? car.x - closest.x - CARD_W
               : closest.x - car.x - CARD_W
-            // Gradually match leader speed: interpolate from free speed (at CARD_W gap)
-            // down to leader speed (at 15px gap)
+            // Brake zone: start at 3× card width, fully match leader at 15px
             const fullMatchVw = (15 / window.innerWidth) * 100
-            const brakeStartVw = CARD_W
+            const brakeStartVw = CARD_W * 3
             if (gap < brakeStartVw) {
-              const t = Math.max(0, (gap - fullMatchVw) / (brakeStartVw - fullMatchVw))
+              // Ease-in curve (t²) so braking is gentle far away, aggressive up close
+              const tLinear = Math.max(0, (gap - fullMatchVw) / (brakeStartVw - fullMatchVw))
+              const t = tLinear * tLinear
               effectiveSpeed = closest.speed + (car.speed - closest.speed) * t
             }
           }
@@ -397,14 +400,11 @@ export default function Home() {
       }
       carsRef.current = remaining
 
-      // Spawn from queue into lanes with room.
-      // If queue is empty, duplicate from articles so all lanes stay populated
-      // regardless of how few guides exist.
+      // Spawn from queue into lanes with room (no duplicates)
       for (let lane = 0; lane < LANE_COUNT; lane++) {
+        if (queueRef.current.length === 0) break
         if (laneHasRoom(lane)) {
-          const article = queueRef.current.length > 0
-            ? queueRef.current.shift()!
-            : articles[Math.floor(Math.random() * articles.length)]
+          const article = queueRef.current.shift()!
           spawnCar(lane, article)
         }
       }
@@ -507,7 +507,14 @@ export default function Home() {
     if (isSensitiveGated) {
       return <div style={wrapperStyle} onClick={() => signIn()}>{cardContent}</div>
     }
-    return <Link href={`/guides/${car.article.slug}`} style={wrapperStyle}>{cardContent}</Link>
+    return (
+      <div
+        style={wrapperStyle}
+        onClick={() => router.push(`/guides/${car.article.slug}`)}
+      >
+        {cardContent}
+      </div>
+    )
   }
 
   const GridCard = ({ article }: { article: Article }) => {
