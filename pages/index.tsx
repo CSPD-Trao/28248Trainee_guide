@@ -369,10 +369,13 @@ export default function Home() {
             const gap = car.direction === 'left'
               ? car.x - closest.x - CARD_W
               : closest.x - car.x - CARD_W
-            const slowThresholdVw = (15 / window.innerWidth) * 100
-            if (gap < slowThresholdVw) {
-              // Match the speed of the car ahead exactly so they travel together
-              effectiveSpeed = closest.speed
+            // Gradually match leader speed: interpolate from free speed (at CARD_W gap)
+            // down to leader speed (at 15px gap)
+            const fullMatchVw = (15 / window.innerWidth) * 100
+            const brakeStartVw = CARD_W
+            if (gap < brakeStartVw) {
+              const t = Math.max(0, (gap - fullMatchVw) / (brakeStartVw - fullMatchVw))
+              effectiveSpeed = closest.speed + (car.speed - closest.speed) * t
             }
           }
         }
@@ -394,11 +397,14 @@ export default function Home() {
       }
       carsRef.current = remaining
 
-      // Spawn from queue into lanes with room
+      // Spawn from queue into lanes with room.
+      // If queue is empty, duplicate from articles so all lanes stay populated
+      // regardless of how few guides exist.
       for (let lane = 0; lane < LANE_COUNT; lane++) {
-        if (queueRef.current.length === 0) break
         if (laneHasRoom(lane)) {
-          const article = queueRef.current.shift()!
+          const article = queueRef.current.length > 0
+            ? queueRef.current.shift()!
+            : articles[Math.floor(Math.random() * articles.length)]
           spawnCar(lane, article)
         }
       }
@@ -441,28 +447,34 @@ export default function Home() {
     const [isHovered, setIsHovered] = useState(false)
     const isSensitiveGated = car.article.sensitive && !session
 
+    const wrapperStyle: React.CSSProperties = {
+      position: 'absolute',
+      left: `${car.x}vw`,
+      top: '50%',
+      transform: 'translateY(-50%)',
+      width: `${CARD_W}vw`,
+      maxWidth: '350px',
+      cursor: 'pointer',
+      textDecoration: 'none',
+      color: 'inherit',
+      willChange: 'left',
+    }
+
     const cardContent = (
       <div
         style={{
-          position: 'absolute',
-          left: `${car.x}vw`,
-          top: '50%',
-          transform: 'translateY(-50%)',
           background: 'linear-gradient(135deg, #1a202c 0%, #0f172a 100%)',
           border: isHovered ? '1px solid #f97316' : '1px solid #3f3f46',
           borderRadius: '6px',
           padding: '1rem',
-          cursor: 'pointer',
           display: 'flex',
           flexDirection: 'column',
-          width: `${CARD_W}vw`,
-          maxWidth: '350px',
           minHeight: '70px',
           maxHeight: '100px',
           overflow: 'hidden',
           transition: 'border-color 0.2s, box-shadow 0.2s',
           boxShadow: isHovered ? '0 0 20px rgba(249, 115, 22, 0.3)' : 'none',
-          willChange: 'left',
+          position: 'relative',
         }}
         onMouseEnter={() => setIsHovered(true)}
         onMouseLeave={() => setIsHovered(false)}
@@ -493,9 +505,9 @@ export default function Home() {
     )
 
     if (isSensitiveGated) {
-      return <div onClick={() => signIn()}>{cardContent}</div>
+      return <div style={wrapperStyle} onClick={() => signIn()}>{cardContent}</div>
     }
-    return <Link href={`/guides/${car.article.slug}`}>{cardContent}</Link>
+    return <Link href={`/guides/${car.article.slug}`} style={wrapperStyle}>{cardContent}</Link>
   }
 
   const GridCard = ({ article }: { article: Article }) => {
