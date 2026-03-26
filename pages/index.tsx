@@ -1,5 +1,6 @@
 import Link from 'next/link'
 import { useState, useEffect, useRef, useCallback } from 'react'
+import { createPortal } from 'react-dom'
 import { useSession, signIn } from 'next-auth/react'
 import type { School } from '@/components/Header'
 import AuditLog from '@/components/AuditLog'
@@ -123,38 +124,53 @@ function SchoolDropdown({ schools, selectedSchool, onSchoolChange, session, onSc
                 <div style={{ padding: '0.65rem 1rem', color: '#6b7280', fontSize: '0.85rem' }}>No schools found</div>
               )}
             </div>
-            {session && (
-              <div style={{ borderTop: '1px solid rgba(63,63,70,0.4)', padding: '0.5rem' }}>
-                <button
-                  onClick={() => { setShowModal(true); setOpen(false) }}
+            <div style={{ borderTop: '1px solid rgba(63,63,70,0.4)', padding: '0.5rem', position: 'relative' }}>
+              <button
+                onClick={() => {
+                  if (!session) { signIn('google'); return }
+                  setShowModal(true); setOpen(false)
+                }}
+                style={{
+                  width: '100%', background: 'rgba(249,115,22,0.1)', border: '1.5px solid rgba(249,115,22,0.4)',
+                  borderRadius: '6px', padding: '0.5rem', cursor: 'pointer',
+                  color: '#f97316', fontSize: '0.85rem', fontWeight: 700, fontFamily: 'system-ui',
+                  filter: !session ? 'blur(3px)' : 'none',
+                  transition: 'filter 0.2s',
+                }}
+              >
+                + Add School
+              </button>
+              {!session && (
+                <div
+                  onClick={() => signIn('google')}
                   style={{
-                    width: '100%', background: 'rgba(249,115,22,0.1)', border: '1.5px solid rgba(249,115,22,0.4)',
-                    borderRadius: '6px', padding: '0.5rem', cursor: 'pointer',
-                    color: '#f97316', fontSize: '0.85rem', fontWeight: 700, fontFamily: 'system-ui',
+                    position: 'absolute', inset: 0, display: 'flex', alignItems: 'center', justifyContent: 'center',
+                    cursor: 'pointer', color: '#f97316', fontSize: '0.78rem', fontWeight: 700,
                   }}
                 >
-                  + Add School
-                </button>
-              </div>
-            )}
+                  🔒 Login to add
+                </div>
+              )}
+            </div>
           </div>
         )}
       </div>
 
-      {/* Add School Modal */}
-      {showModal && (
+      {/* Add School Modal — portaled to body so it's not clipped by header */}
+      {showModal && typeof document !== 'undefined' && createPortal(
         <div
           onClick={e => { if (e.target === e.currentTarget) setShowModal(false) }}
           style={{
-            position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.7)',
-            zIndex: 2000, display: 'flex', alignItems: 'center', justifyContent: 'center',
+            position: 'fixed', top: 0, left: 0, right: 0, bottom: 0,
+            background: 'rgba(0,0,0,0.7)',
+            zIndex: 9999, display: 'flex', alignItems: 'center', justifyContent: 'center',
             backdropFilter: 'blur(4px)',
           }}
         >
           <div style={{
             background: 'linear-gradient(135deg, #1a202c, #0f172a)',
             border: '1.5px solid #f97316', borderRadius: '12px', padding: '2rem',
-            width: '100%', maxWidth: '420px', boxShadow: '0 24px 64px rgba(0,0,0,0.8)',
+            width: '90%', maxWidth: '420px', boxShadow: '0 24px 64px rgba(0,0,0,0.8)',
           }}>
             <div style={{ fontSize: '1.3rem', fontWeight: 900, color: '#f1f5f9', marginBottom: '1.5rem', fontFamily: "'Oswald', system-ui, sans-serif", letterSpacing: '0.04em' }}>
               🏫 Add School
@@ -187,7 +203,8 @@ function SchoolDropdown({ schools, selectedSchool, onSchoolChange, session, onSc
               </div>
             </form>
           </div>
-        </div>
+        </div>,
+        document.body
       )}
     </>
   )
