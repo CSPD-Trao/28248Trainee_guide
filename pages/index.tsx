@@ -504,12 +504,14 @@ export default function Home() {
     )
 
     if (isSensitiveGated) {
-      return <div style={wrapperStyle} onPointerDown={() => signIn()}>{cardContent}</div>
+      return <div style={wrapperStyle} onPointerDown={() => signIn()} onPointerEnter={() => setIsHovered(true)} onPointerLeave={() => setIsHovered(false)}>{cardContent}</div>
     }
     return (
       <div
         style={wrapperStyle}
         onPointerDown={() => router.push(`/guides/${car.article.slug}`)}
+        onPointerEnter={() => setIsHovered(true)}
+        onPointerLeave={() => setIsHovered(false)}
       >
         {cardContent}
       </div>
