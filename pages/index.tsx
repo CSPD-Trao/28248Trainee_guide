@@ -14,8 +14,13 @@ interface Article {
   schools: string[]
 }
 
-interface CardState {
-  article: Article | null
+interface Car {
+  id: number
+  article: Article
+  lane: number
+  x: number          // vw from left
+  speed: number      // vw per frame (~16ms)
+  direction: 'left' | 'right'
 }
 
 // ── Inline School Dropdown ────────────────────────────────────────────────────
@@ -224,13 +229,18 @@ export default function Home() {
   const [viewMode, setViewMode] = useState<'queue' | 'grid'>('queue')
   const [buttonHovered, setButtonHovered] = useState(false)
   
-  // ── Queue-based carousel system ──────────────────────────────────────────
-  // All articles sit in a queue. Empty lanes pull from the queue randomly.
-  // When a card's animation ends it re-enters the queue, freeing the lane.
-  const queue = useRef<Article[]>([])
-  const [lanes, setLanes] = useState<(Article | null)[]>([null, null, null, null, null])
-  const laneCounters = useRef([0, 0, 0, 0, 0])
-  const [laneKeys, setLaneKeys] = useState([0, 0, 0, 0, 0])
+  // ── Car-physics carousel system ──────────────────────────────────────────
+  const LANE_COUNT = 5
+  const CARD_W = 22        // approx card width in vw
+  const MIN_GAP = 4        // min gap in vw between cars
+  const ENTRY_CLEAR = 28   // vw a car must travel before next can enter lane
+
+  const carsRef = useRef<Car[]>([])
+  const queueRef = useRef<Article[]>([])
+  const rafRef = useRef<number>(0)
+  const carIdCounter = useRef(0)
+  const lastFrameRef = useRef(0)
+  const [renderedCars, setRenderedCars] = useState<Car[]>([])
 
   useEffect(() => {
     const fetchData = async () => {
@@ -272,57 +282,134 @@ export default function Home() {
     }
   }, [selectedSchool, allArticles])
 
-  /** When a card finishes animating out, return it to the queue and immediately fill empty lanes — all in one state update so there's no visible gap */
-  const handleCardExit = useCallback((laneIndex: number) => {
-    setLanes(prev => {
-      const next = [...prev]
-      // Return exiting card to queue
-      const exiting = next[laneIndex]
-      if (exiting) queue.current.push(exiting)
-      next[laneIndex] = null
+  /** Spawn a new car at the entry edge of a lane */
+  const spawnCar = useCallback((lane: number, article: Article) => {
+    const dir = lane % 2 === 0 ? 'left' as const : 'right' as const
+    const startX = dir === 'left' ? 102 : -(CARD_W + 2)
+    const speed = 0.12 + Math.random() * 0.18  // vw per frame
+    const car: Car = {
+      id: carIdCounter.current++,
+      article,
+      lane,
+      x: startX,
+      speed,
+      direction: dir,
+    }
+    carsRef.current.push(car)
+  }, [CARD_W])
 
-      // Immediately drain queue into all empty lanes (including the one just freed)
-      const emptyIndices = next.map((v, i) => v === null ? i : -1).filter(i => i >= 0)
-      for (let i = emptyIndices.length - 1; i > 0; i--) {
-        const j = Math.floor(Math.random() * (i + 1));
-        [emptyIndices[i], emptyIndices[j]] = [emptyIndices[j], emptyIndices[i]]
-      }
-      for (const idx of emptyIndices) {
-        if (queue.current.length === 0) break
-        next[idx] = queue.current.shift()!
-        laneCounters.current[idx] += 1
-      }
-      setLaneKeys([...laneCounters.current])
-      return next
-    })
-  }, [])
+  /** Check if a lane's entry zone is clear (enough room for a new car) */
+  const laneHasRoom = useCallback((lane: number) => {
+    const dir = lane % 2 === 0 ? 'left' : 'right'
+    const laneCars = carsRef.current.filter(c => c.lane === lane)
+    if (laneCars.length === 0) return true
+    for (const c of laneCars) {
+      if (dir === 'left' && c.x > 100 - ENTRY_CLEAR) return false
+      if (dir === 'right' && c.x < ENTRY_CLEAR - CARD_W) return false
+    }
+    return true
+  }, [CARD_W, ENTRY_CLEAR])
 
-  // Reset queue + lanes whenever filtered articles change
+  // Main animation loop
   useEffect(() => {
     if (articles.length === 0) return
-    // Shuffle a copy of articles into the queue
+
+    const tick = (now: number) => {
+      if (!lastFrameRef.current) lastFrameRef.current = now
+      const dt = Math.min(now - lastFrameRef.current, 50) / 16  // normalize to ~16ms frames
+      lastFrameRef.current = now
+
+      const cars = carsRef.current
+
+      // Move each car, slowing if it would close gap on car ahead
+      for (const car of cars) {
+        const ahead = cars.filter(c =>
+          c.lane === car.lane && c.id !== car.id &&
+          (car.direction === 'left' ? c.x < car.x : c.x > car.x)
+        )
+        let effectiveSpeed = car.speed
+
+        if (ahead.length > 0) {
+          // Find closest car ahead
+          const closest = ahead.reduce((best, c) => {
+            const dist = car.direction === 'left'
+              ? car.x - c.x - CARD_W
+              : c.x - car.x - CARD_W
+            const bestDist = car.direction === 'left'
+              ? best.x === Infinity ? Infinity : car.x - best.x - CARD_W
+              : best.x === Infinity ? Infinity : best.x - car.x - CARD_W
+            return dist < bestDist ? c : best
+          }, { x: Infinity } as Car)
+
+          if (closest.x !== Infinity) {
+            const gap = car.direction === 'left'
+              ? car.x - closest.x - CARD_W
+              : closest.x - car.x - CARD_W
+
+            if (gap < MIN_GAP + CARD_W) {
+              // Slow down to match or go slightly slower than car ahead
+              effectiveSpeed = Math.min(effectiveSpeed, closest.speed * 0.95)
+            }
+          }
+        }
+
+        car.x += (car.direction === 'left' ? -1 : 1) * effectiveSpeed * dt
+      }
+
+      // Remove cars that have exited and return their article to queue
+      const remaining: Car[] = []
+      for (const car of cars) {
+        const exited = car.direction === 'left'
+          ? car.x < -(CARD_W + 5)
+          : car.x > 105
+        if (exited) {
+          queueRef.current.push(car.article)
+        } else {
+          remaining.push(car)
+        }
+      }
+      carsRef.current = remaining
+
+      // Try to spawn from queue into lanes with room
+      for (let lane = 0; lane < LANE_COUNT; lane++) {
+        if (queueRef.current.length === 0) break
+        if (laneHasRoom(lane)) {
+          const article = queueRef.current.shift()!
+          spawnCar(lane, article)
+        }
+      }
+
+      setRenderedCars([...carsRef.current])
+      rafRef.current = requestAnimationFrame(tick)
+    }
+
+    rafRef.current = requestAnimationFrame(tick)
+    return () => cancelAnimationFrame(rafRef.current)
+  }, [articles, CARD_W, LANE_COUNT, MIN_GAP, ENTRY_CLEAR, laneHasRoom, spawnCar])
+
+  // Reset queue + cars whenever filtered articles change
+  useEffect(() => {
+    if (articles.length === 0) return
+    // Stop existing animation
+    cancelAnimationFrame(rafRef.current)
+    lastFrameRef.current = 0
+
+    // Shuffle articles into queue
     const shuffled = [...articles]
     for (let i = shuffled.length - 1; i > 0; i--) {
       const j = Math.floor(Math.random() * (i + 1));
       [shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]]
     }
-    queue.current = shuffled
-    // Immediately fill lanes from queue in one go
-    const newLanes: (Article | null)[] = [null, null, null, null, null]
-    const indices = [0, 1, 2, 3, 4]
-    // Shuffle lane order for random placement
-    for (let i = 4; i > 0; i--) {
-      const j = Math.floor(Math.random() * (i + 1));
-      [indices[i], indices[j]] = [indices[j], indices[i]]
+    queueRef.current = shuffled
+    carsRef.current = []
+
+    // Immediately spawn one car per lane (if we have enough articles)
+    for (let lane = 0; lane < LANE_COUNT && queueRef.current.length > 0; lane++) {
+      const article = queueRef.current.shift()!
+      spawnCar(lane, article)
     }
-    for (const idx of indices) {
-      if (queue.current.length === 0) break
-      newLanes[idx] = queue.current.shift()!
-      laneCounters.current[idx] += 1
-    }
-    setLanes(newLanes)
-    setLaneKeys([...laneCounters.current])
-  }, [articles])
+    setRenderedCars([...carsRef.current])
+  }, [articles, LANE_COUNT, spawnCar])
 
   function refreshSchools() {
     fetch('/api/schools').then(r => r.json()).then(d => setSchools(d.schools ?? []))
@@ -342,15 +429,17 @@ export default function Home() {
     }
   }, [allArticles])
 
-  const CardComponent = ({ card, direction, layer, onExit }: { card: CardState; direction: 'left' | 'right'; layer: 'layer1' | 'layer2' | 'layer3' | 'layer4' | 'layer5'; onExit: () => void }) => {
-    if (!card.article) return null
-
+  const CarCard = ({ car }: { car: Car }) => {
     const [isHovered, setIsHovered] = useState(false)
-    const isSensitiveGated = card.article.sensitive && !session
+    const isSensitiveGated = car.article.sensitive && !session
 
     const cardContent = (
       <div
         style={{
+          position: 'absolute',
+          left: `${car.x}vw`,
+          top: '50%',
+          transform: 'translateY(-50%)',
           background: 'linear-gradient(135deg, #1a202c 0%, #0f172a 100%)',
           border: isHovered ? '1px solid #f97316' : '1px solid #3f3f46',
           borderRadius: '6px',
@@ -358,18 +447,17 @@ export default function Home() {
           cursor: 'pointer',
           display: 'flex',
           flexDirection: 'column',
-          width: 'max-content',
+          width: `${CARD_W}vw`,
           maxWidth: '350px',
           minHeight: '70px',
-          maxHeight: '120px',
-          animation: `${direction === 'left' ? 'cycleLeft' : 'cycleRight'} 25s linear forwards`,
-          transition: 'all 0.3s ease-in-out',
+          maxHeight: '100px',
+          overflow: 'hidden',
+          transition: 'border-color 0.2s, box-shadow 0.2s',
           boxShadow: isHovered ? '0 0 20px rgba(249, 115, 22, 0.3)' : 'none',
-          position: 'relative',
+          willChange: 'left',
         }}
         onMouseEnter={() => setIsHovered(true)}
         onMouseLeave={() => setIsHovered(false)}
-        onAnimationEnd={() => onExit()}
       >
         {isSensitiveGated && (
           <div style={{ position: 'absolute', inset: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 2, gap: '0.4rem', color: '#f97316', fontSize: '0.8rem', fontWeight: 700 }}>
@@ -382,7 +470,7 @@ export default function Home() {
           filter: isSensitiveGated ? 'blur(5px)' : 'none',
           userSelect: isSensitiveGated ? 'none' : 'auto',
         }}>
-          {card.article.title}
+          {car.article.title}
         </h3>
         <p style={{
           fontSize: '0.7rem', color: '#a0aec0', lineHeight: '1.3', margin: 0,
@@ -391,7 +479,7 @@ export default function Home() {
           filter: isSensitiveGated ? 'blur(4px)' : 'none',
           userSelect: isSensitiveGated ? 'none' : 'auto',
         }}>
-          {card.article.description}
+          {car.article.description}
         </p>
       </div>
     )
@@ -399,7 +487,7 @@ export default function Home() {
     if (isSensitiveGated) {
       return <div onClick={() => signIn()}>{cardContent}</div>
     }
-    return <Link href={`/guides/${card.article.slug}`}>{cardContent}</Link>
+    return <Link href={`/guides/${car.article.slug}`}>{cardContent}</Link>
   }
 
   const GridCard = ({ article }: { article: Article }) => {
@@ -544,39 +632,7 @@ export default function Home() {
           transform: translateX(0);
         }
 
-        @keyframes cycleLeft {
-          0% {
-            transform: translateX(100vw);
-            opacity: 0;
-          }
-          5% {
-            opacity: 1;
-          }
-          95% {
-            opacity: 1;
-          }
-          100% {
-            transform: translateX(-100vw);
-            opacity: 0;
-          }
-        }
-        
-        @keyframes cycleRight {
-          0% {
-            transform: translateX(-100vw);
-            opacity: 0;
-          }
-          5% {
-            opacity: 1;
-          }
-          95% {
-            opacity: 1;
-          }
-          100% {
-            transform: translateX(100vw);
-            opacity: 0;
-          }
-        }
+        /* car-physics carousel uses JS positioning, no keyframes needed */
 
         .header-top {
           position: fixed;
@@ -991,22 +1047,19 @@ export default function Home() {
             gap: '0.75rem',
             overflow: 'hidden',
           }}>
-            {lanes.map((article, i) => {
-              const direction = i % 2 === 0 ? 'left' as const : 'right' as const
-              return (
-                <div key={i} className="card-wrapper">
-                  {article && (
-                    <CardComponent
-                      key={`lane${i}-${laneKeys[i]}`}
-                      card={{ article }}
-                      direction={direction}
-                      layer={`layer${i + 1}` as any}
-                      onExit={() => handleCardExit(i)}
-                    />
-                  )}
-                </div>
-              )
-            })}
+            {Array.from({ length: LANE_COUNT }, (_, laneIdx) => (
+              <div key={laneIdx} style={{
+                position: 'relative',
+                height: '120px',
+                width: '100%',
+                overflow: 'hidden',
+              }}>
+                {renderedCars
+                  .filter(c => c.lane === laneIdx)
+                  .map(car => <CarCard key={car.id} car={car} />)
+                }
+              </div>
+            ))}
           </section>
         ) : (
           // Grid View
