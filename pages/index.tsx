@@ -286,7 +286,7 @@ export default function Home() {
   const spawnCar = useCallback((lane: number, article: Article) => {
     const dir = lane % 2 === 0 ? 'left' as const : 'right' as const
     const startX = dir === 'left' ? 102 : -(CARD_W + 2)
-    const speed = 0.12 + Math.random() * 0.18  // vw per frame
+    const speed = 0.02 + Math.random() * 0.14  // vw per frame
     const car: Car = {
       id: carIdCounter.current++,
       article,
