@@ -315,8 +315,8 @@ const GITHUB_OWNER = process.env.GITHUB_OWNER || 'CSPD-Trao'
 const GITHUB_REPO = process.env.GITHUB_REPO || '28248Trainee_guide'
 const GITHUB_BRANCH = process.env.GITHUB_BRANCH || 'main'
 
-async function fetchGuideFromGitHub(slug: string): Promise<string | null> {
-  const url = `https://raw.githubusercontent.com/${GITHUB_OWNER}/${GITHUB_REPO}/${GITHUB_BRANCH}/content/guides/${slug}.md`
+async function fetchGuideFromGitHub(slugPath: string): Promise<string | null> {
+  const url = `https://raw.githubusercontent.com/${GITHUB_OWNER}/${GITHUB_REPO}/${GITHUB_BRANCH}/content/guides/${slugPath}.md`
   const headers: Record<string, string> = { 'Cache-Control': 'no-cache' }
   if (process.env.GITHUB_TOKEN) headers['Authorization'] = `token ${process.env.GITHUB_TOKEN}`
   const res = await fetch(url, { headers })
@@ -331,17 +331,21 @@ export async function getServerSideProps({ params, req, res }: any) {
   const { authOptions } = require('../api/auth/[...nextauth]')
   const readFile = fs.promises.readFile
 
+  // params.slug is an array for [...slug] catch-all routes e.g. ['ola','daily']
+  const slugParts: string[] = Array.isArray(params.slug) ? params.slug : [params.slug]
+  const slugPath = slugParts.join('/')
+
   try {
     let raw: string | null = null
 
     // In production read from GitHub so TinaCMS saves appear without redeploying
     if (process.env.GITHUB_TOKEN || process.env.NODE_ENV === 'production') {
-      raw = await fetchGuideFromGitHub(params.slug)
+      raw = await fetchGuideFromGitHub(slugPath)
     }
     // Fallback to local filesystem (local dev)
     if (raw === null) {
       try {
-        const filePath = path.join(process.cwd(), 'content/guides', `${params.slug}.md`)
+        const filePath = path.join(process.cwd(), 'content/guides', `${slugPath}.md`)
         raw = await readFile(filePath, 'utf-8')
       } catch (_) {
         return { notFound: true }
@@ -356,7 +360,7 @@ export async function getServerSideProps({ params, req, res }: any) {
     if (frontmatter.sensitive === true) {
       const session = await getServerSession(req, res, authOptions)
       if (!session) {
-        return { props: { guide: { gated: true, slug: params.slug } } }
+        return { props: { guide: { gated: true, slug: slugPath } } }
       }
     }
 
@@ -369,7 +373,8 @@ export async function getServerSideProps({ params, req, res }: any) {
     const bodyHtml = await marked.parse(bodyMd)
 
     // Title: prefer frontmatter, then first H1, then slug
-    let title = params.slug.replace(/_/g, ' ').replace(/\b\w/g, (c: string) => c.toUpperCase())
+    const lastSegment = slugParts[slugParts.length - 1]
+    let title = lastSegment.replace(/_/g, ' ').replace(/\b\w/g, (c: string) => c.toUpperCase())
     if (frontmatter.title) {
       title = frontmatter.title
     } else if (firstHeadingIdx >= 0) {
@@ -381,7 +386,7 @@ export async function getServerSideProps({ params, req, res }: any) {
         guide: {
           title,
           body: bodyHtml,
-          slug: params.slug,
+          slug: slugPath,
           sensitive: frontmatter.sensitive ?? false,
           schools: frontmatter.schools ?? [],
           gated: false,
