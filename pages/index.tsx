@@ -296,11 +296,15 @@ export default function Home() {
     usedOnLayer5.current = new Set()
 
     const a = articles
-    if (a[0]) { setLayer1({ article: a[0] }); usedOnLayer1.current.add(a[0].id) }
-    if (a[1]) { setLayer2({ article: a[1] }); usedOnLayer2.current.add(a[1].id) }
-    if (a[2]) { setLayer3({ article: a[2] }); usedOnLayer3.current.add(a[2].id) }
-    if (a[3]) { setLayer4({ article: a[3] }); usedOnLayer4.current.add(a[3].id) }
-    if (a[4]) { setLayer5({ article: a[4] }); usedOnLayer5.current.add(a[4].id) }
+    const len = a.length
+    // Use modulo wrapping so all 5 lanes are always populated even with < 5 articles.
+    // This ensures general (schools=[]) articles appear on multiple lanes simultaneously.
+    const at = (i: number) => a[i % len]
+    setLayer1({ article: at(0) }); usedOnLayer1.current.add(at(0).id)
+    setLayer2({ article: at(1) }); usedOnLayer2.current.add(at(1).id)
+    setLayer3({ article: at(2) }); usedOnLayer3.current.add(at(2).id)
+    setLayer4({ article: at(3) }); usedOnLayer4.current.add(at(3).id)
+    setLayer5({ article: at(4) }); usedOnLayer5.current.add(at(4).id)
 
     cycleCount1.current += 1; cycleCount2.current += 1; cycleCount3.current += 1
     cycleCount4.current += 1; cycleCount5.current += 1
