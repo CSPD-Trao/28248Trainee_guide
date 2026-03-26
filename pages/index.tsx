@@ -505,12 +505,12 @@ export default function Home() {
     )
 
     if (isSensitiveGated) {
-      return <div style={wrapperStyle} onClick={() => signIn()}>{cardContent}</div>
+      return <div style={wrapperStyle} onPointerDown={() => signIn()}>{cardContent}</div>
     }
     return (
       <div
         style={wrapperStyle}
-        onClick={() => router.push(`/guides/${car.article.slug}`)}
+        onPointerDown={() => router.push(`/guides/${car.article.slug}`)}
       >
         {cardContent}
       </div>
