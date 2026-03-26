@@ -224,27 +224,13 @@ export default function Home() {
   const [viewMode, setViewMode] = useState<'queue' | 'grid'>('queue')
   const [buttonHovered, setButtonHovered] = useState(false)
   
-  // Queue system for each layer
-  const [layer1, setLayer1] = useState<CardState>({ article: null })
-  const [layer2, setLayer2] = useState<CardState>({ article: null })
-  const [layer3, setLayer3] = useState<CardState>({ article: null })
-  const [layer4, setLayer4] = useState<CardState>({ article: null })
-  const [layer5, setLayer5] = useState<CardState>({ article: null })
-  
-  // Track which articles have been shown on each layer
-  const usedOnLayer1 = useRef<Set<string>>(new Set())
-  const usedOnLayer2 = useRef<Set<string>>(new Set())
-  const usedOnLayer3 = useRef<Set<string>>(new Set())
-  const usedOnLayer4 = useRef<Set<string>>(new Set())
-  const usedOnLayer5 = useRef<Set<string>>(new Set())
-
-  // Cycle counters — incrementing forces CardComponent to remount and restart the animation
-  const cycleCount1 = useRef(0)
-  const cycleCount2 = useRef(0)
-  const cycleCount3 = useRef(0)
-  const cycleCount4 = useRef(0)
-  const cycleCount5 = useRef(0)
-  const [cycleKeys, setCycleKeys] = useState({ l1: 0, l2: 0, l3: 0, l4: 0, l5: 0 })
+  // ── Queue-based carousel system ──────────────────────────────────────────
+  // All articles sit in a queue. Empty lanes pull from the queue randomly.
+  // When a card's animation ends it re-enters the queue, freeing the lane.
+  const queue = useRef<Article[]>([])
+  const [lanes, setLanes] = useState<(Article | null)[]>([null, null, null, null, null])
+  const laneCounters = useRef([0, 0, 0, 0, 0])
+  const [laneKeys, setLaneKeys] = useState([0, 0, 0, 0, 0])
 
   useEffect(() => {
     const fetchData = async () => {
@@ -286,78 +272,59 @@ export default function Home() {
     }
   }, [selectedSchool, allArticles])
 
-  // Re-initialize queue layers whenever the filtered article list changes
+  /** Move items from the queue into random empty lanes */
+  const drainQueue = useCallback(() => {
+    setLanes(prev => {
+      const next = [...prev]
+      const emptyIndices = next.map((v, i) => v === null ? i : -1).filter(i => i >= 0)
+      // Shuffle empty indices so placement is random
+      for (let i = emptyIndices.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        [emptyIndices[i], emptyIndices[j]] = [emptyIndices[j], emptyIndices[i]]
+      }
+      let changed = false
+      for (const idx of emptyIndices) {
+        if (queue.current.length === 0) break
+        next[idx] = queue.current.shift()!
+        laneCounters.current[idx] += 1
+        changed = true
+      }
+      if (changed) setLaneKeys([...laneCounters.current])
+      return next
+    })
+  }, [])
+
+  /** When a card finishes animating out, return it to the queue and fill empty lanes */
+  const handleCardExit = useCallback((laneIndex: number) => {
+    setLanes(prev => {
+      const next = [...prev]
+      const exiting = next[laneIndex]
+      if (exiting) queue.current.push(exiting)
+      next[laneIndex] = null
+      return next
+    })
+    setTimeout(() => drainQueue(), 0)
+  }, [drainQueue])
+
+  // Reset queue + lanes whenever filtered articles change
   useEffect(() => {
     if (articles.length === 0) return
-    usedOnLayer1.current = new Set()
-    usedOnLayer2.current = new Set()
-    usedOnLayer3.current = new Set()
-    usedOnLayer4.current = new Set()
-    usedOnLayer5.current = new Set()
-
-    const a = articles
-    const len = a.length
-    // Use modulo wrapping so all 5 lanes are always populated even with < 5 articles.
-    // This ensures general (schools=[]) articles appear on multiple lanes simultaneously.
-    const at = (i: number) => a[i % len]
-    setLayer1({ article: at(0) }); usedOnLayer1.current.add(at(0).id)
-    setLayer2({ article: at(1) }); usedOnLayer2.current.add(at(1).id)
-    setLayer3({ article: at(2) }); usedOnLayer3.current.add(at(2).id)
-    setLayer4({ article: at(3) }); usedOnLayer4.current.add(at(3).id)
-    setLayer5({ article: at(4) }); usedOnLayer5.current.add(at(4).id)
-
-    cycleCount1.current += 1; cycleCount2.current += 1; cycleCount3.current += 1
-    cycleCount4.current += 1; cycleCount5.current += 1
-    setCycleKeys(k => ({ l1: cycleCount1.current, l2: cycleCount2.current, l3: cycleCount3.current, l4: cycleCount4.current, l5: cycleCount5.current }))
-  }, [articles])
+    // Shuffle a copy of articles into the queue
+    const shuffled = [...articles]
+    for (let i = shuffled.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1));
+      [shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]]
+    }
+    queue.current = shuffled
+    // Clear all lanes then drain
+    setLanes([null, null, null, null, null])
+    laneCounters.current = laneCounters.current.map(c => c + 1)
+    setLaneKeys([...laneCounters.current])
+    setTimeout(() => drainQueue(), 0)
+  }, [articles, drainQueue])
 
   function refreshSchools() {
     fetch('/api/schools').then(r => r.json()).then(d => setSchools(d.schools ?? []))
-  }
-
-  const getNextArticle = useCallback((usedSet: React.MutableRefObject<Set<string>>) => {
-    for (const article of articles) {
-      if (!usedSet.current.has(article.id)) {
-        usedSet.current.add(article.id)
-        return article
-      }
-    }
-    // All articles used, reset and start over
-    usedSet.current.clear()
-    if (articles.length > 0) {
-      usedSet.current.add(articles[0].id)
-      return articles[0]
-    }
-    return null
-  }, [articles])
-
-  const handleCardExit = (layer: 'layer1' | 'layer2' | 'layer3' | 'layer4' | 'layer5') => {
-    if (layer === 'layer1') {
-      const next = getNextArticle(usedOnLayer1)
-      cycleCount1.current += 1
-      setLayer1({ article: next })
-      setCycleKeys(k => ({ ...k, l1: cycleCount1.current }))
-    } else if (layer === 'layer2') {
-      const next = getNextArticle(usedOnLayer2)
-      cycleCount2.current += 1
-      setLayer2({ article: next })
-      setCycleKeys(k => ({ ...k, l2: cycleCount2.current }))
-    } else if (layer === 'layer3') {
-      const next = getNextArticle(usedOnLayer3)
-      cycleCount3.current += 1
-      setLayer3({ article: next })
-      setCycleKeys(k => ({ ...k, l3: cycleCount3.current }))
-    } else if (layer === 'layer4') {
-      const next = getNextArticle(usedOnLayer4)
-      cycleCount4.current += 1
-      setLayer4({ article: next })
-      setCycleKeys(k => ({ ...k, l4: cycleCount4.current }))
-    } else if (layer === 'layer5') {
-      const next = getNextArticle(usedOnLayer5)
-      cycleCount5.current += 1
-      setLayer5({ article: next })
-      setCycleKeys(k => ({ ...k, l5: cycleCount5.current }))
-    }
   }
 
   const handleSearch = useCallback((query: string) => {
@@ -1023,30 +990,22 @@ export default function Home() {
             gap: '0.75rem',
             overflow: 'hidden',
           }}>
-            {/* Layer 1 - exits left */}
-            <div className="card-wrapper">
-              {layer1.article && <CardComponent key={`l1-${cycleKeys.l1}`} card={layer1} direction="left" layer="layer1" onExit={() => handleCardExit('layer1')} />}
-            </div>
-
-            {/* Layer 2 - exits right */}
-            <div className="card-wrapper">
-              {layer2.article && <CardComponent key={`l2-${cycleKeys.l2}`} card={layer2} direction="right" layer="layer2" onExit={() => handleCardExit('layer2')} />}
-            </div>
-
-            {/* Layer 3 - exits left */}
-            <div className="card-wrapper">
-              {layer3.article && <CardComponent key={`l3-${cycleKeys.l3}`} card={layer3} direction="left" layer="layer3" onExit={() => handleCardExit('layer3')} />}
-            </div>
-
-            {/* Layer 4 - exits right */}
-            <div className="card-wrapper">
-              {layer4.article && <CardComponent key={`l4-${cycleKeys.l4}`} card={layer4} direction="right" layer="layer4" onExit={() => handleCardExit('layer4')} />}
-            </div>
-
-            {/* Layer 5 - exits left */}
-            <div className="card-wrapper">
-              {layer5.article && <CardComponent key={`l5-${cycleKeys.l5}`} card={layer5} direction="left" layer="layer5" onExit={() => handleCardExit('layer5')} />}
-            </div>
+            {lanes.map((article, i) => {
+              const direction = i % 2 === 0 ? 'left' as const : 'right' as const
+              return (
+                <div key={i} className="card-wrapper">
+                  {article && (
+                    <CardComponent
+                      key={`lane${i}-${laneKeys[i]}`}
+                      card={{ article }}
+                      direction={direction}
+                      layer={`layer${i + 1}` as any}
+                      onExit={() => handleCardExit(i)}
+                    />
+                  )}
+                </div>
+              )
+            })}
           </section>
         ) : (
           // Grid View
