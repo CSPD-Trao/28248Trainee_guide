@@ -475,9 +475,8 @@ export default function Home() {
           transition: 'border-color 0.2s, box-shadow 0.2s',
           boxShadow: isHovered ? '0 0 20px rgba(249, 115, 22, 0.3)' : 'none',
           position: 'relative',
+          pointerEvents: 'none',
         }}
-        onMouseEnter={() => setIsHovered(true)}
-        onMouseLeave={() => setIsHovered(false)}
       >
         {isSensitiveGated && (
           <div style={{ position: 'absolute', inset: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 2, gap: '0.4rem', color: '#f97316', fontSize: '0.8rem', fontWeight: 700 }}>
