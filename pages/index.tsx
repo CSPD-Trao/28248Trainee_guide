@@ -369,8 +369,10 @@ export default function Home() {
             const gap = car.direction === 'left'
               ? car.x - closest.x - CARD_W
               : closest.x - car.x - CARD_W
-            if (gap < MIN_GAP + CARD_W) {
-              effectiveSpeed = Math.min(effectiveSpeed, closest.speed * 0.95)
+            const slowThresholdVw = (15 / window.innerWidth) * 100
+            if (gap < slowThresholdVw) {
+              // Match the speed of the car ahead exactly so they travel together
+              effectiveSpeed = closest.speed
             }
           }
         }
