@@ -310,13 +310,38 @@ export default function Home() {
     return true
   }, [CARD_W, ENTRY_CLEAR])
 
-  // Main animation loop
+  // Combined init + animation loop (merged to avoid two effects fighting over rAF)
   useEffect(() => {
-    if (articles.length === 0) return
+    if (articles.length === 0) {
+      console.log('[carousel] no articles, skipping')
+      return
+    }
 
+    // ── Reset: shuffle articles into queue, spawn initial cars ──
+    cancelAnimationFrame(rafRef.current)
+    lastFrameRef.current = 0
+
+    const shuffled = [...articles]
+    for (let i = shuffled.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1));
+      [shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]]
+    }
+    queueRef.current = shuffled
+    carsRef.current = []
+
+    for (let lane = 0; lane < LANE_COUNT && queueRef.current.length > 0; lane++) {
+      const article = queueRef.current.shift()!
+      spawnCar(lane, article)
+    }
+    console.log('[carousel] init: %d articles, %d cars spawned, %d in queue',
+      articles.length, carsRef.current.length, queueRef.current.length)
+    setRenderedCars([...carsRef.current])
+
+    // ── Animation loop ──
+    let frameCount = 0
     const tick = (now: number) => {
       if (!lastFrameRef.current) lastFrameRef.current = now
-      const dt = Math.min(now - lastFrameRef.current, 50) / 16  // normalize to ~16ms frames
+      const dt = Math.min(now - lastFrameRef.current, 50) / 16
       lastFrameRef.current = now
 
       const cars = carsRef.current
@@ -330,7 +355,6 @@ export default function Home() {
         let effectiveSpeed = car.speed
 
         if (ahead.length > 0) {
-          // Find closest car ahead
           const closest = ahead.reduce((best, c) => {
             const dist = car.direction === 'left'
               ? car.x - c.x - CARD_W
@@ -345,9 +369,7 @@ export default function Home() {
             const gap = car.direction === 'left'
               ? car.x - closest.x - CARD_W
               : closest.x - car.x - CARD_W
-
             if (gap < MIN_GAP + CARD_W) {
-              // Slow down to match or go slightly slower than car ahead
               effectiveSpeed = Math.min(effectiveSpeed, closest.speed * 0.95)
             }
           }
@@ -356,7 +378,7 @@ export default function Home() {
         car.x += (car.direction === 'left' ? -1 : 1) * effectiveSpeed * dt
       }
 
-      // Remove cars that have exited and return their article to queue
+      // Remove exited cars → back to queue
       const remaining: Car[] = []
       for (const car of cars) {
         const exited = car.direction === 'left'
@@ -370,7 +392,7 @@ export default function Home() {
       }
       carsRef.current = remaining
 
-      // Try to spawn from queue into lanes with room
+      // Spawn from queue into lanes with room
       for (let lane = 0; lane < LANE_COUNT; lane++) {
         if (queueRef.current.length === 0) break
         if (laneHasRoom(lane)) {
@@ -380,36 +402,20 @@ export default function Home() {
       }
 
       setRenderedCars([...carsRef.current])
+
+      // Periodic debug log
+      frameCount++
+      if (frameCount % 300 === 0) {
+        console.log('[carousel] frame %d: %d cars on screen, %d in queue',
+          frameCount, carsRef.current.length, queueRef.current.length)
+      }
+
       rafRef.current = requestAnimationFrame(tick)
     }
 
     rafRef.current = requestAnimationFrame(tick)
     return () => cancelAnimationFrame(rafRef.current)
   }, [articles, CARD_W, LANE_COUNT, MIN_GAP, ENTRY_CLEAR, laneHasRoom, spawnCar])
-
-  // Reset queue + cars whenever filtered articles change
-  useEffect(() => {
-    if (articles.length === 0) return
-    // Stop existing animation
-    cancelAnimationFrame(rafRef.current)
-    lastFrameRef.current = 0
-
-    // Shuffle articles into queue
-    const shuffled = [...articles]
-    for (let i = shuffled.length - 1; i > 0; i--) {
-      const j = Math.floor(Math.random() * (i + 1));
-      [shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]]
-    }
-    queueRef.current = shuffled
-    carsRef.current = []
-
-    // Immediately spawn one car per lane (if we have enough articles)
-    for (let lane = 0; lane < LANE_COUNT && queueRef.current.length > 0; lane++) {
-      const article = queueRef.current.shift()!
-      spawnCar(lane, article)
-    }
-    setRenderedCars([...carsRef.current])
-  }, [articles, LANE_COUNT, spawnCar])
 
   function refreshSchools() {
     fetch('/api/schools').then(r => r.json()).then(d => setSchools(d.schools ?? []))
